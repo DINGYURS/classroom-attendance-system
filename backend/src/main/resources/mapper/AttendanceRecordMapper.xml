@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.project.backend.mapper.AttendanceRecordMapper">
+
+    <resultMap id="BaseResultMap" type="com.project.backend.pojo.entity.AttendanceRecord">
+        <id column="record_id" property="recordId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="student_id" property="studentId"/>
+        <result column="status" property="status"/>
+        <result column="similarity_score" property="similarityScore"/>
+        <result column="face_location" property="faceLocation"/>
+        <result column="update_type" property="updateType"/>
+    </resultMap>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT * FROM attendance_records WHERE record_id = #{recordId}
+    </select>
+
+    <select id="findBySessionId" resultMap="BaseResultMap">
+        SELECT * FROM attendance_records WHERE session_id = #{sessionId}
+    </select>
+
+    <select id="findByStudentId" resultMap="BaseResultMap">
+        SELECT * FROM attendance_records WHERE student_id = #{studentId} ORDER BY record_id DESC
+    </select>
+
+    <insert id="batchInsert" parameterType="list">
+        INSERT INTO attendance_records (session_id, student_id, status)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.sessionId}, #{item.studentId}, #{item.status})
+        </foreach>
+    </insert>
+
+    <update id="update">
+        UPDATE attendance_records
+        SET status = #{status},
+            similarity_score = #{similarityScore},
+            recognize_time = #{recognizeTime}
+        WHERE record_id = #{recordId}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE attendance_records
+        SET status = #{status}, similarity_score = #{similarityScore}, recognize_time = NOW()
+        WHERE session_id = #{sessionId} AND student_id = #{studentId}
+    </update>
+
+    <select id="countBySessionIdAndStatus" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM attendance_records WHERE session_id = #{sessionId} AND status = #{status}
+    </select>
+</mapper>

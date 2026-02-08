@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.project.backend.mapper.UserMapper">
+
+    <resultMap id="BaseResultMap" type="com.project.backend.pojo.entity.User">
+        <id column="user_id" property="userId"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="real_name" property="realName"/>
+        <result column="role" property="role"/>
+        <result column="avatar_url" property="avatarUrl"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="findByUsername" resultMap="BaseResultMap">
+        SELECT user_id, username, password, real_name, role, avatar_url, create_time
+        FROM user
+        WHERE username = #{username}
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT user_id, username, password, real_name, role, avatar_url, create_time
+        FROM user
+        WHERE user_id = #{userId}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="userId">
+        INSERT INTO user (username, password, real_name, role, avatar_url, create_time)
+        VALUES (#{username}, #{password}, #{realName}, #{role}, #{avatarUrl}, #{createTime})
+    </insert>
+
+    <update id="update">
+        UPDATE user
+        <set>
+            <if test="password != null">password = #{password},</if>
+            <if test="realName != null">real_name = #{realName},</if>
+            <if test="avatarUrl != null">avatar_url = #{avatarUrl},</if>
+        </set>
+        WHERE user_id = #{userId}
+    </update>
+
+</mapper>

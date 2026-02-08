@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.project.backend.mapper.AttendanceSessionMapper">
+
+    <resultMap id="BaseResultMap" type="com.project.backend.pojo.entity.AttendanceSession">
+        <id column="session_id" property="sessionId"/>
+        <result column="course_id" property="courseId"/>
+        <result column="teacher_id" property="teacherId"/>
+        <result column="source_images" property="sourceImages"/>
+        <result column="total_student" property="totalStudent"/>
+        <result column="actual_student" property="actualStudent"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="late_threshold" property="lateThreshold"/>
+        <result column="status" property="status"/>
+    </resultMap>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT * FROM attendance_session WHERE session_id = #{sessionId}
+    </select>
+
+    <select id="findByCourseId" resultMap="BaseResultMap">
+        SELECT * FROM attendance_session WHERE course_id = #{courseId} ORDER BY start_time DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="sessionId">
+        INSERT INTO attendance_session (course_id, course_id, source_images, total_student,
+                                         actual_student, start_time)
+        VALUES (#{courseId}, #{courseId}, #{sourceImages}, #{totalStudent},
+                #{actualStudent}, #{startTime})
+    </insert>
+
+    <update id="update">
+        UPDATE attendance_sessions
+        <set>
+            <if test="sourceImages != null">source_images = #{sourceImages},</if>
+            <if test="totalStudent != null">total_student = #{totalStudent},</if>
+            <if test="actualStudent != null">actual_student = #{actualStudent},</if>
+            <if test="endTime != null">end_time = #{endTime},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE session_id = #{sessionId}
+    </update>
+</mapper>

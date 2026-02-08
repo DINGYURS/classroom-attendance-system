@@ -1,0 +1,69 @@
+server:
+  port: 9100
+
+spring:
+  profiles:
+    active: dev
+  main:
+    allow-circular-references: true
+  datasource:
+    driver-class-name: ${rollcallsystem.datasource.driver-class-name}
+    url: jdbc:mysql://${rollcallsystem.datasource.host}:${rollcallsystem.datasource.port}/${rollcallsystem.datasource.database}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${rollcallsystem.datasource.username}
+    password: ${rollcallsystem.datasource.password}
+  # redis:
+  #   host: ${sky.redis.host}
+  #   port: ${sky.redis.port}
+  #   database: ${sky.redis.database}
+  #   timeout: 5000             # Redis 的连接超时时间，单位毫秒
+
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  group-configs:
+    - group: '全部接口'
+      paths-to-match: '/**'
+      packages-to-scan: com.project.backend.controller
+
+knife4j:
+  enable: false
+  setting:
+    language: zh_cn
+
+mybatis:
+  #mapper配置文件
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.project.backend.pojo.entity
+  configuration:
+    #开启驼峰命名
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com:
+      rollcallsystem:
+        mapper: debug
+        service: info
+        controller: info
+
+rollcallsystem:
+  jwt:
+    # 设置jwt签名加密时使用的秘钥
+    admin-secret-key: Jasminum
+    # 设置jwt过期时间
+    admin-ttl: 86400000
+    # 设置前端传递过来的令牌名称
+    admin-token-name: token
+  minio:
+    endpoint: ${rollcallsystem.minio.endpoint}
+    access-key: ${rollcallsystem.minio.access-key}
+    secret-key: ${rollcallsystem.minio.secret-key}
+    bucket-name: ${rollcallsystem.minio.bucket-name}
+  python-service:
+    # Python 算法服务地址
+    base-url: ${rollcallsystem.python-service.url}

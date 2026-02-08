@@ -1,0 +1,1 @@
+A rapid classroom attendance system based on Face Recognition. Tech stack: Vue3 + Spring Boot 3 + Python (YOLOv11 + InsightFace).

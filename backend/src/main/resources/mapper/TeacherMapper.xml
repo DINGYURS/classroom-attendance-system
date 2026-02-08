@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.project.backend.mapper.TeacherMapper">
+
+    <resultMap id="BaseResultMap" type="com.project.backend.pojo.entity.Teacher">
+        <id column="user_id" property="userId"/>
+        <result column="job_number" property="jobNumber"/>
+    </resultMap>
+
+    <select id="findByUserId" resultMap="BaseResultMap">
+        SELECT user_id, job_number
+        FROM teacher
+        WHERE user_id = #{userId}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO teacher (user_id, job_number)
+        VALUES (#{userId}, #{jobNumber})
+    </insert>
+
+    <update id="update">
+        UPDATE teacher
+        SET job_number = #{jobNumber}
+        WHERE user_id = #{userId}
+    </update>
+
+</mapper>
