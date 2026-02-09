@@ -1,0 +1,31 @@
+// Common Result
+export interface Result<T> {
+  code: number
+  message: string
+  data: T
+}
+
+// 用户登录
+export interface UserLoginDTO {
+  username?: string
+  password?: string
+}
+
+export interface UserLoginVO {
+  userId: number
+  username: string
+  realName: string
+  role: number // 1-Teacher, 2-Student
+  avatarUrl: string
+  token: string
+}
+
+// 用户注册
+export interface UserRegisterDTO {
+  username?: string
+  password?: string
+  realName?: string
+  role?: number // 1-Teacher, 2-Student
+  adminClass?: string
+  gender?: number // 1-Male, 2-Female
+}

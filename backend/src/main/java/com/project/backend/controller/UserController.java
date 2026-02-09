@@ -1,6 +1,7 @@
 package com.project.backend.controller;
 
 import com.project.backend.pojo.dto.UserLoginDTO;
+import com.project.backend.pojo.dto.UserRegisterDTO;
 import com.project.backend.pojo.result.Result;
 import com.project.backend.pojo.vo.UserLoginVO;
 import com.project.backend.service.UserService;
@@ -35,4 +36,17 @@ public class UserController {
         UserLoginVO userLoginVO = userService.login(userLoginDTO);
         return Result.success(userLoginVO);
     }
+
+    /**
+     * 用户注册
+     */
+    @PostMapping("/register")
+    @Operation(summary = "用户注册", description = "用户注册(教师/学生)")
+    public Result<Void> register(@RequestBody UserRegisterDTO userRegisterDTO) {
+        log.info("用户注册: {}", userRegisterDTO.getUsername());
+        userService.register(userRegisterDTO);
+        return Result.success();
+    }
+
+
 }

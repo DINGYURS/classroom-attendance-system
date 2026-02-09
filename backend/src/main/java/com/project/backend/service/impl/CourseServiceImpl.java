@@ -1,13 +1,10 @@
 package com.project.backend.service.impl;
 
-import cn.hutool.crypto.digest.DigestUtil;
 import com.project.backend.constant.MessageConstants;
-import com.project.backend.constant.RoleConstants;
 import com.project.backend.context.BaseContext;
 import com.project.backend.exception.BusinessException;
 import com.project.backend.mapper.*;
 import com.project.backend.pojo.dto.CourseDTO;
-import com.project.backend.pojo.dto.TeacherRegisterDTO;
 import com.project.backend.pojo.entity.*;
 import com.project.backend.pojo.vo.CourseStudentVO;
 import com.project.backend.pojo.vo.CourseVO;
@@ -32,9 +29,6 @@ public class CourseServiceImpl implements CourseService {
     private UserMapper userMapper;
 
     @Autowired
-    private TeacherMapper teacherMapper;
-
-    @Autowired
     private CourseMapper courseMapper;
 
     @Autowired
@@ -42,35 +36,6 @@ public class CourseServiceImpl implements CourseService {
 
     @Autowired
     private StudentMapper studentMapper;
-
-    @Override
-    @Transactional
-    public void registerTeacher(TeacherRegisterDTO registerDTO) {
-        // 检查用户名是否已存在
-        User existUser = userMapper.findByUsername(registerDTO.getJobNumber());
-        if (existUser != null) {
-            throw new BusinessException(MessageConstants.USER_EXISTS);
-        }
-
-        // 创建用户
-        User user = User.builder()
-                .username(registerDTO.getJobNumber())
-                .password(DigestUtil.md5Hex(registerDTO.getPassword()))
-                .realName(registerDTO.getRealName())
-                .role(RoleConstants.ROLE_TEACHER)
-                .createTime(LocalDateTime.now())
-                .build();
-        userMapper.insert(user);
-
-        // 创建教师信息
-        Teacher teacher = Teacher.builder()
-                .userId(user.getUserId())
-                .jobNumber(registerDTO.getJobNumber())
-                .build();
-        teacherMapper.insert(teacher);
-
-        log.info("教师注册成功: {}", registerDTO.getJobNumber());
-    }
 
     @Override
     public Long createCourse(CourseDTO courseDTO) {

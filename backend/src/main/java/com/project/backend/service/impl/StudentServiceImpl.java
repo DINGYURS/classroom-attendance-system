@@ -1,13 +1,10 @@
 package com.project.backend.service.impl;
 
-import cn.hutool.crypto.digest.DigestUtil;
 import com.project.backend.constant.MessageConstants;
-import com.project.backend.constant.RoleConstants;
 import com.project.backend.context.BaseContext;
 import com.project.backend.exception.BusinessException;
 import com.project.backend.mapper.*;
 import com.project.backend.pojo.dto.FaceFeatureDTO;
-import com.project.backend.pojo.dto.StudentRegisterDTO;
 import com.project.backend.pojo.entity.AttendanceRecord;
 import com.project.backend.pojo.entity.AttendanceSession;
 import com.project.backend.pojo.entity.Student;
@@ -21,9 +18,7 @@ import com.project.backend.utils.AesUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -54,37 +49,6 @@ public class StudentServiceImpl implements StudentService {
 
     @Autowired
     private PythonServiceClient pythonServiceClient;
-
-    @Override
-    @Transactional
-    public void register(StudentRegisterDTO registerDTO) {
-        // 检查用户名是否已存在
-        User existUser = userMapper.findByUsername(registerDTO.getStudentNumber());
-        if (existUser != null) {
-            throw new BusinessException(MessageConstants.USER_EXISTS);
-        }
-
-        // 创建用户
-        User user = User.builder()
-                .username(registerDTO.getStudentNumber())
-                .password(DigestUtil.md5Hex(registerDTO.getPassword()))
-                .realName(registerDTO.getRealName())
-                .role(RoleConstants.ROLE_STUDENT)
-                .createTime(LocalDateTime.now())
-                .build();
-        userMapper.insert(user);
-
-        // 创建学生信息
-        Student student = Student.builder()
-                .userId(user.getUserId())
-                .studentNumber(registerDTO.getStudentNumber())
-                .adminClass(registerDTO.getAdminClass())
-                .gender(registerDTO.getGender())
-                .build();
-        studentMapper.insert(student);
-
-        log.info("学生注册成功: {}", registerDTO.getStudentNumber());
-    }
 
     @Override
     public StudentVO getCurrentStudentInfo() {

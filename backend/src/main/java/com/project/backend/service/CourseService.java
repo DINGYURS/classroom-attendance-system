@@ -1,7 +1,6 @@
 package com.project.backend.service;
 
 import com.project.backend.pojo.dto.CourseDTO;
-import com.project.backend.pojo.dto.TeacherRegisterDTO;
 import com.project.backend.pojo.vo.CourseStudentVO;
 import com.project.backend.pojo.vo.CourseVO;
 
@@ -11,13 +10,6 @@ import java.util.List;
  * 教师/课程服务接口
  */
 public interface CourseService {
-
-    /**
-     * 教师注册
-     *
-     * @param registerDTO 注册信息
-     */
-    void registerTeacher(TeacherRegisterDTO registerDTO);
 
     /**
      * 创建课程

@@ -2,7 +2,6 @@ package com.project.backend.controller;
 
 import com.project.backend.pojo.dto.FaceFeatureDTO;
 import com.project.backend.pojo.dto.FaceImageUploadDTO;
-import com.project.backend.pojo.dto.StudentRegisterDTO;
 import com.project.backend.pojo.result.Result;
 import com.project.backend.pojo.vo.AttendanceRecordVO;
 import com.project.backend.pojo.vo.StudentVO;
@@ -26,17 +25,6 @@ public class StudentController {
 
     @Autowired
     private StudentService studentService;
-
-    /**
-     * 学生注册
-     */
-    @PostMapping("/register")
-    @Operation(summary = "学生注册", description = "学生使用学号注册账号")
-    public Result<Void> register(@RequestBody StudentRegisterDTO registerDTO) {
-        log.info("学生注册: {}", registerDTO.getStudentNumber());
-        studentService.register(registerDTO);
-        return Result.success();
-    }
 
     /**
      * 获取当前学生信息

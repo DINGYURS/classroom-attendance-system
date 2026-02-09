@@ -27,7 +27,7 @@ public interface UserMapper {
     User findById(@Param("userId") Long userId);
 
     /**
-     * 插入新用户
+     * 用户注册
      *
      * @param user 用户信息
      */

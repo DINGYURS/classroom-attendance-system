@@ -1,6 +1,7 @@
 package com.project.backend.service;
 
 import com.project.backend.pojo.dto.UserLoginDTO;
+import com.project.backend.pojo.dto.UserRegisterDTO;
 import com.project.backend.pojo.vo.UserLoginVO;
 
 /**
@@ -15,4 +16,11 @@ public interface UserService {
      * @return 登录响应（含 token）
      */
     UserLoginVO login(UserLoginDTO userLoginDTO);
+
+    /**
+     * 用户注册
+     *
+     * @param userRegisterDTO 注册信息
+     */
+    void register(UserRegisterDTO userRegisterDTO);
 }

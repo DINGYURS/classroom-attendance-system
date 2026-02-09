@@ -19,7 +19,7 @@ import java.io.Serializable;
 public class Result<T> implements Serializable {
 
     /**
-     * 状态码：200 成功，其他为失败
+     * 状态码：1为成功，其0为失败
      */
     private Integer code;
 
@@ -38,7 +38,7 @@ public class Result<T> implements Serializable {
      */
     public static <T> Result<T> success() {
         return Result.<T>builder()
-                .code(200)
+                .code(1)
                 .message("success")
                 .build();
     }
@@ -48,7 +48,7 @@ public class Result<T> implements Serializable {
      */
     public static <T> Result<T> success(T data) {
         return Result.<T>builder()
-                .code(200)
+                .code(1)
                 .message("success")
                 .data(data)
                 .build();
@@ -59,7 +59,7 @@ public class Result<T> implements Serializable {
      */
     public static <T> Result<T> error(String message) {
         return Result.<T>builder()
-                .code(500)
+                .code(0)
                 .message(message)
                 .build();
     }

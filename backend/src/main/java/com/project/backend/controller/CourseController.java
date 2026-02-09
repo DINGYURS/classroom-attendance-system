@@ -1,7 +1,6 @@
 package com.project.backend.controller;
 
 import com.project.backend.pojo.dto.CourseDTO;
-import com.project.backend.pojo.dto.TeacherRegisterDTO;
 import com.project.backend.pojo.result.Result;
 import com.project.backend.pojo.vo.CourseStudentVO;
 import com.project.backend.pojo.vo.CourseVO;
@@ -25,17 +24,6 @@ public class CourseController {
 
     @Autowired
     private CourseService courseService;
-
-    /**
-     * 教师注册
-     */
-    @PostMapping("/teacher/register")
-    @Operation(summary = "教师注册", description = "教师使用工号注册账号")
-    public Result<Void> registerTeacher(@RequestBody TeacherRegisterDTO registerDTO) {
-        log.info("教师注册: {}", registerDTO.getJobNumber());
-        courseService.registerTeacher(registerDTO);
-        return Result.success();
-    }
 
     /**
      * 创建课程
