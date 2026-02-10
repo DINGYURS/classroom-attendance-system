@@ -25,12 +25,16 @@ export const useAuthStore = defineStore('user', () => {
     userInfo.value = data
   }
 
+  const updateUserInfo = (data: Partial<UserLoginVO>) => {
+    userInfo.value = { ...userInfo.value, ...data }
+  }
+
   const logout = () => {
     userInfo.value = {} as UserLoginVO
     router.replace('/login')
   }
 
-  return { userInfo, isLoggedIn, isTeacher, loginSuccess, logout }
+  return { userInfo, isLoggedIn, isTeacher, loginSuccess, updateUserInfo, logout }
 }, {
   persist: true
 })

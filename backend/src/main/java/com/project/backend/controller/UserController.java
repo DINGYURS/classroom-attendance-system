@@ -1,5 +1,7 @@
-package com.project.backend.controller;
+﻿package com.project.backend.controller;
 
+import com.project.backend.pojo.dto.StudentUpdateDTO;
+import com.project.backend.pojo.dto.TeacherUpdateDTO;
 import com.project.backend.pojo.dto.UserLoginDTO;
 import com.project.backend.pojo.dto.UserRegisterDTO;
 import com.project.backend.pojo.result.Result;
@@ -10,6 +12,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -20,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RestController
 @RequestMapping("/api/user")
-@Tag(name = "用户接口", description = "用户登录、注册相关接口")
+@Tag(name = "用户接口", description = "用户登录、注册、资料修改相关接口")
 public class UserController {
 
     @Autowired
@@ -48,5 +51,25 @@ public class UserController {
         return Result.success();
     }
 
+    /**
+     * 修改教师信息
+     */
+    @PutMapping("/teacher/profile")
+    @Operation(summary = "修改教师信息", description = "教师可修改姓名、工号、密码")
+    public Result<Void> updateTeacherInfo(@RequestBody TeacherUpdateDTO updateDTO) {
+        log.info("修改教师信息");
+        userService.updateTeacherInfo(updateDTO);
+        return Result.success();
+    }
 
+    /**
+     * 修改学生信息
+     */
+    @PutMapping("/student/profile")
+    @Operation(summary = "修改学生信息", description = "学生可修改姓名、密码、头像地址")
+    public Result<Void> updateStudentInfo(@RequestBody StudentUpdateDTO updateDTO) {
+        log.info("修改学生信息");
+        userService.updateStudentInfo(updateDTO);
+        return Result.success();
+    }
 }

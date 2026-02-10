@@ -98,115 +98,155 @@ classroom-attendance-system/
 ```mysql
 -- =======================================================
 -- 1. 用户基础表 (Base User)
--- 作用：存储登录信息与公共属性
--- 变更：移除 Admin 角色，仅保留 Teacher 和 Student
 -- =======================================================
-CREATE TABLE `user` (
-  `user_id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-  `username` varchar(64) NOT NULL COMMENT '账号(学号/工号)',
-  `password` varchar(128) NOT NULL COMMENT '加密密码',
-  `real_name` varchar(64) NOT NULL COMMENT '真实姓名',
-  
-  -- [修改点] 角色仅包含: 1-Teacher, 2-Student
-  `role` tinyint NOT NULL DEFAULT 2 COMMENT '角色: 1-Teacher, 2-Student',
-  
-  `avatar_url` varchar(255) DEFAULT NULL COMMENT '头像地址(MinIO)',
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`user_id`),
-  UNIQUE KEY `uk_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户基础表';
+create table user
+(
+    user_id     bigint auto_increment comment '主键ID'
+        primary key,
+    username    varchar(64)                        not null comment '账号(学号/工号)',
+    password    varchar(128)                       not null comment '加密密码',
+    real_name   varchar(64)                        not null comment '真实姓名',
+    role        tinyint  default 2                 not null comment '角色: 1-Teacher, 2-Student',
+    create_time datetime default CURRENT_TIMESTAMP null,
+    constraint uk_username
+        unique (username)
+)
+    comment '用户基础表';
 
 -- =======================================================
--- 2. 学生信息扩展表 (Student Extension)
--- 作用：存储学生特有属性及敏感人脸数据 (1:1 关联 sys_user)
+-- 2. 教师信息扩展表 (Teacher Extension)
+-- 关联 user.user_id，主键即外键
 -- =======================================================
-CREATE TABLE `student` (
-  `user_id` bigint NOT NULL COMMENT '关联sys_user.user_id',
-  `student_number` varchar(32) NOT NULL COMMENT '学号',
-  `admin_class` varchar(64) NOT NULL COMMENT '行政班级(如: 计科225)',
-  `gender` tinyint DEFAULT NULL COMMENT '性别: 1-男, 2-女',
-  
-  -- [核心设计点] 使用 TEXT 存储 AES 加密后的 Base64 字符串
-  `feature_vector` text COMMENT '人脸特征值(AES加密密文)',
-  
-  PRIMARY KEY (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='学生信息表';
+create table teacher
+(
+    user_id    bigint      not null comment '关联user.user_id'
+        primary key,
+    job_number varchar(32) not null comment '工号',
+    
+    -- [新增] 外键约束，确保必须先有 User 才能有 Teacher
+    constraint fk_teacher_user
+        foreign key (user_id) references user (user_id)
+            on delete cascade
+)
+    comment '教师信息表';
 
 -- =======================================================
--- 3. 教师信息扩展表 (Teacher Extension)
--- 作用：存储教师特有属性 (1:1 关联 sys_user)
--- 变更：移除 department 字段
+-- 3. 学生信息扩展表 (Student Extension)
+-- 关联 user.user_id，主键即外键
 -- =======================================================
-CREATE TABLE `teacher` (
-  `user_id` bigint NOT NULL COMMENT '关联sys_user.user_id',
-  `job_number` varchar(32) NOT NULL COMMENT '工号',
-  
-  -- [修改点] 已移除 department (所属院系) 字段
-  
-  PRIMARY KEY (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='教师信息表';
+create table student
+(
+    user_id        bigint      not null comment '关联user.user_id'
+        primary key,
+    student_number varchar(32) not null comment '学号',
+    admin_class    varchar(64) not null comment '行政班级(如: 计科225)',
+    gender         tinyint     null comment '性别: 1-男, 2-女',
+    
+    -- [移入] 头像仅归属学生
+    avatar_url     varchar(255) null comment '学生头像/人脸底库图(MinIO)',
+    
+    feature_vector text        null comment '人脸特征值(AES加密密文)',
+    
+    -- [新增] 外键约束
+    constraint fk_student_user
+        foreign key (user_id) references user (user_id)
+            on delete cascade
+)
+    comment '学生信息表';
 
 -- =======================================================
--- 4. 课程/教学班表 (Course/Section)
--- 作用：教师创建的课堂容器，采用私有制 (属于单个教师)
+-- 4. 课程表 (Course)
 -- =======================================================
-CREATE TABLE `course` (
-  `course_id` bigint NOT NULL AUTO_INCREMENT,
-  `course_name` varchar(128) NOT NULL COMMENT '课程名称',
-  `teacher_id` bigint NOT NULL COMMENT '所属教师ID',
-  `semester` varchar(32) DEFAULT NULL COMMENT '学期(如: 2025-2026-1)',
-  `description` varchar(512) DEFAULT NULL COMMENT '课程描述',
-  `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`course_id`),
-  KEY `idx_teacher` (`teacher_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程表';
+create table course
+(
+    course_id   bigint auto_increment
+        primary key,
+    course_name varchar(128)                       not null comment '课程名称',
+    teacher_id  bigint                             not null comment '所属教师ID(关联teacher.user_id)',
+    semester    varchar(32)                        null comment '学期(如: 2025-2026-1)',
+    description varchar(512)                       null comment '课程描述',
+    create_time datetime default CURRENT_TIMESTAMP null,
+    
+    -- [新增] 外键约束：课程必须属于存在的老师
+    constraint fk_course_teacher
+        foreign key (teacher_id) references teacher (user_id)
+)
+    comment '课程表';
+
+create index idx_teacher
+    on course (teacher_id);
 
 -- =======================================================
 -- 5. 课程-学生关联表 (Course Enrollment)
--- 作用：选课名单/花名册，通过 Excel 导入生成
 -- =======================================================
-CREATE TABLE `course_student` (
-  `id` bigint NOT NULL AUTO_INCREMENT,
-  `course_id` bigint NOT NULL,
-  `student_id` bigint NOT NULL,
-  `join_time` datetime DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_course_student` (`course_id`, `student_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='课程学生关联表';
+create table course_student
+(
+    id         bigint auto_increment
+        primary key,
+    course_id  bigint                             not null,
+    student_id bigint                             not null comment '关联student.user_id',
+    join_time  datetime default CURRENT_TIMESTAMP null,
+    
+    constraint uk_course_student
+        unique (course_id, student_id),
+        
+    -- [新增] 外键约束
+    constraint fk_cs_course
+        foreign key (course_id) references course (course_id)
+            on delete cascade,
+    constraint fk_cs_student
+        foreign key (student_id) references student (user_id)
+            on delete cascade
+)
+    comment '课程学生关联表';
 
 -- =======================================================
 -- 6. 考勤会话表 (Attendance Session)
--- 作用：一次具体的点名任务（原子性），包含多张照片
 -- =======================================================
-CREATE TABLE `attendance_session` (
-  `session_id` bigint NOT NULL AUTO_INCREMENT,
-  `course_id` bigint NOT NULL COMMENT '所属课程',
-  `source_images` json NOT NULL COMMENT '原始合照URL列表(JSON Array)',
-  `total_student` int NOT NULL DEFAULT 0 COMMENT '应到人数',
-  `actual_student` int NOT NULL DEFAULT 0 COMMENT '实到人数',
-  `start_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '点名时间',
-  PRIMARY KEY (`session_id`),
-  KEY `idx_course` (`course_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='考勤会话表';
+create table attendance_session
+(
+    session_id     bigint auto_increment
+        primary key,
+    course_id      bigint                             not null comment '所属课程',
+    source_images  json                               not null comment '原始合照URL列表(JSON Array)',
+    total_student  int      default 0                 not null comment '应到人数',
+    actual_student int      default 0                 not null comment '实到人数',
+    start_time     datetime default CURRENT_TIMESTAMP null comment '点名时间',
+    
+    -- [新增] 外键约束
+    constraint fk_session_course
+        foreign key (course_id) references course (course_id)
+)
+    comment '考勤会话表';
+
+create index idx_course
+    on attendance_session (course_id);
 
 -- =======================================================
 -- 7. 考勤明细记录表 (Attendance Record)
--- 作用：全量快照模式，存储每位学生的出勤状态与算法元数据
 -- =======================================================
-CREATE TABLE `attendance_record` (
-  `record_id` bigint NOT NULL AUTO_INCREMENT,
-  `session_id` bigint NOT NULL COMMENT '关联会话',
-  `student_id` bigint NOT NULL COMMENT '关联学生',
-  `status` tinyint NOT NULL DEFAULT 0 COMMENT '考勤状态: 0-缺勤, 1-已到, 2-迟到, 3-请假',
-  
-  -- 算法元数据
-  `similarity_score` decimal(5,4) DEFAULT NULL COMMENT '识别相似度(如 0.8521)',
-  `face_location` varchar(64) DEFAULT NULL COMMENT '人脸坐标(如 [x,y,w,h])',
-  `update_type` tinyint DEFAULT 1 COMMENT '修改类型: 1-算法自动, 2-人工修正',
-  
-  PRIMARY KEY (`record_id`),
-  UNIQUE KEY `uk_session_student` (`session_id`, `student_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='考勤明细表';
+create table attendance_record
+(
+    record_id        bigint auto_increment
+        primary key,
+    session_id       bigint            not null comment '关联会话',
+    student_id       bigint            not null comment '关联学生',
+    status           tinyint default 0 not null comment '考勤状态: 0-缺勤, 1-已到, 2-迟到, 3-请假',
+    similarity_score decimal(5, 4)     null comment '识别相似度(如 0.8521)',
+    face_location    varchar(64)       null comment '人脸坐标(如 [x,y,w,h])',
+    update_type      tinyint default 1 null comment '修改类型: 1-算法自动, 2-人工修正',
+    
+    constraint uk_session_student
+        unique (session_id, student_id),
+        
+    -- [新增] 外键约束
+    constraint fk_record_session
+        foreign key (session_id) references attendance_session (session_id)
+            on delete cascade,
+    constraint fk_record_student
+        foreign key (student_id) references student (user_id)
+)
+    comment '考勤明细表';
 ```
 
 

@@ -37,13 +37,13 @@ public class Student implements Serializable {
     private Integer gender;
 
     /**
+     * 头像地址（MinIO）
+     */
+    private String avatarUrl;
+
+    /**
      * 人脸特征值（AES 加密密文）
      */
     private String featureVector;
-
-    /**
-     * 人脸图片 MinIO 存储路径
-     */
-    private String faceImageKey;
 }
 

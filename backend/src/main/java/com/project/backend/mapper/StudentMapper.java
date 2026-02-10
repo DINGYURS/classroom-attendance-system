@@ -35,7 +35,7 @@ public interface StudentMapper {
     /**
      * 更新人脸图片路径
      */
-    void updateFaceImageKey(@Param("userId") Long userId, @Param("avatar_url") String avatarUrl);
+    void updateFaceImageKey(@Param("userId") Long userId, @Param("avatarUrl") String avatarUrl);
 
     /**
      * 根据用户 ID 列表查询学生信息

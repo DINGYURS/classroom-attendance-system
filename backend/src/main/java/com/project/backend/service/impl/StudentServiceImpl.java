@@ -66,7 +66,7 @@ public class StudentServiceImpl implements StudentService {
                 .realName(user.getRealName())
                 .adminClass(student.getAdminClass())
                 .gender(student.getGender())
-                .avatarUrl(user.getAvatarUrl())
+                .avatarUrl(student.getAvatarUrl())
                 .hasFaceFeature(student.getFeatureVector() != null && !student.getFeatureVector().isEmpty())
                 .build();
     }

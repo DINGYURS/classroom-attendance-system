@@ -28,11 +28,6 @@ public class AttendanceSession implements Serializable {
     private Long courseId;
 
     /**
-     * 教师 ID
-     */
-    private Long teacherId;
-
-    /**
      * 原始合照 URL 列表（JSON Array）
      */
     private String sourceImages;
@@ -51,20 +46,5 @@ public class AttendanceSession implements Serializable {
      * 点名开始时间
      */
     private LocalDateTime startTime;
-
-    /**
-     * 点名结束时间
-     */
-    private LocalDateTime endTime;
-
-    /**
-     * 迟到阈值（分钟）
-     */
-    private Integer lateThreshold;
-
-    /**
-     * 状态: 0-进行中, 1-已结束
-     */
-    private Integer status;
 }
 

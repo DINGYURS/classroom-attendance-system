@@ -24,7 +24,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-
+// 该文件需重新编写
 /**
  * 考勤服务实现类
  */
@@ -66,10 +66,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         // 创建考勤会话
         AttendanceSession session = AttendanceSession.builder()
                 .courseId(startDTO.getCourseId())
-                .teacherId(teacherId)
                 .startTime(LocalDateTime.now())
-                .lateThreshold(startDTO.getLateThreshold() != null ? startDTO.getLateThreshold() : 10)
-                .status(0) // 进行中
                 .build();
         attendanceSessionMapper.insert(session);
 
@@ -93,15 +90,12 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public void endAttendance(Long sessionId) {
-        Long teacherId = BaseContext.getCurrentId();
         AttendanceSession session = attendanceSessionMapper.findById(sessionId);
 
-        if (session == null || !session.getTeacherId().equals(teacherId)) {
+        if (session == null) {
             throw new BusinessException(MessageConstants.NO_PERMISSION);
         }
 
-        session.setStatus(1); // 已结束
-        session.setEndTime(LocalDateTime.now());
         attendanceSessionMapper.update(session);
 
         log.info("点名结束: 会话ID={}", sessionId);
@@ -111,7 +105,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Transactional
     public List<RecognitionResultVO> recognizeFaces(FaceRecognitionDTO recognitionDTO) {
         AttendanceSession session = attendanceSessionMapper.findById(recognitionDTO.getSessionId());
-        if (session == null || session.getStatus() == 1) {
+        if (session == null) {
             throw new BusinessException("考勤会话不存在或已结束");
         }
 
@@ -154,9 +148,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
             if (bestMatch != null) {
                 // 判断迟到
-                LocalDateTime now = LocalDateTime.now();
-                LocalDateTime lateTime = session.getStartTime().plusMinutes(session.getLateThreshold());
-                int status = now.isAfter(lateTime) ? AttendanceStatus.LATE : AttendanceStatus.PRESENT;
+                int status = 555;
                 bestMatch.setStatus(status);
 
                 // 更新考勤记录
@@ -192,7 +184,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
         int presentCount = 0;
         for (AttendanceRecord record : records) {
-            if (record.getStatus() != null && record.getStatus() != AttendanceStatus.ABSENT) {
+            if (record.getStatus() != null && !record.getStatus().equals(AttendanceStatus.ABSENT)) {
                 presentCount++;
             }
         }
@@ -202,8 +194,6 @@ public class AttendanceServiceImpl implements AttendanceService {
                 .courseId(session.getCourseId())
                 .courseName(course != null ? course.getCourseName() : "")
                 .startTime(session.getStartTime())
-                .endTime(session.getEndTime())
-                .status(session.getStatus())
                 .presentCount(presentCount)
                 .totalCount(records.size())
                 .build();
@@ -242,7 +232,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             List<AttendanceRecord> records = attendanceRecordMapper.findBySessionId(session.getSessionId());
             int presentCount = 0;
             for (AttendanceRecord record : records) {
-                if (record.getStatus() != null && record.getStatus() != AttendanceStatus.ABSENT) {
+                if (record.getStatus() != null && !record.getStatus().equals(AttendanceStatus.ABSENT)) {
                     presentCount++;
                 }
             }
@@ -252,8 +242,6 @@ public class AttendanceServiceImpl implements AttendanceService {
                     .courseId(session.getCourseId())
                     .courseName(course != null ? course.getCourseName() : "")
                     .startTime(session.getStartTime())
-                    .endTime(session.getEndTime())
-                    .status(session.getStatus())
                     .presentCount(presentCount)
                     .totalCount(records.size())
                     .build());

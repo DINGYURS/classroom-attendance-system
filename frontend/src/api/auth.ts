@@ -1,7 +1,7 @@
 import request from '@/utils/request'
 import type { 
   UserLoginDTO, 
-  UserRegisterDTO,
+  UserRegisterDTO
 } from '@/types/api'
 
 // 用户登录

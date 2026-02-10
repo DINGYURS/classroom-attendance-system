@@ -1,11 +1,17 @@
-package com.project.backend.service.impl;
+﻿package com.project.backend.service.impl;
 
 import com.project.backend.constant.MessageConstants;
 import com.project.backend.context.BaseContext;
 import com.project.backend.exception.BusinessException;
-import com.project.backend.mapper.*;
+import com.project.backend.mapper.CourseMapper;
+import com.project.backend.mapper.CourseStudentMapper;
+import com.project.backend.mapper.StudentMapper;
+import com.project.backend.mapper.UserMapper;
 import com.project.backend.pojo.dto.CourseDTO;
-import com.project.backend.pojo.entity.*;
+import com.project.backend.pojo.entity.Course;
+import com.project.backend.pojo.entity.CourseStudent;
+import com.project.backend.pojo.entity.Student;
+import com.project.backend.pojo.entity.User;
 import com.project.backend.pojo.vo.CourseStudentVO;
 import com.project.backend.pojo.vo.CourseVO;
 import com.project.backend.service.CourseService;
@@ -90,9 +96,7 @@ public class CourseServiceImpl implements CourseService {
             throw new BusinessException(MessageConstants.NO_PERMISSION);
         }
 
-        // 删除课程学生关联
         courseStudentMapper.deleteByCourseId(courseId);
-        // 删除课程
         courseMapper.deleteById(courseId);
 
         log.info("课程删除成功: {}", courseId);

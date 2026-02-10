@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
 /**
  * 统一 API 响应结构
  *
@@ -16,11 +18,13 @@ import java.io.Serializable;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Schema(description = "统一 API 响应结构")
 public class Result<T> implements Serializable {
 
     /**
      * 状态码：1为成功，其0为失败
      */
+    @Schema(description = "状态码：1为成功，0为失败", example = "1")
     private Integer code;
 
     /**

@@ -7,18 +7,18 @@
         <result column="student_number" property="studentNumber"/>
         <result column="admin_class" property="adminClass"/>
         <result column="gender" property="gender"/>
+        <result column="avatar_url" property="avatarUrl"/>
         <result column="feature_vector" property="featureVector"/>
-        <result column="face_image_key" property="faceImageKey"/>
     </resultMap>
 
     <select id="findByUserId" resultMap="BaseResultMap">
-        SELECT user_id, student_number, admin_class, gender, feature_vector
+        SELECT user_id, student_number, admin_class, gender, avatar_url, feature_vector
         FROM student
         WHERE user_id = #{userId}
     </select>
 
     <select id="findByUserIds" resultMap="BaseResultMap">
-        SELECT user_id, student_number, admin_class, gender, feature_vector
+        SELECT user_id, student_number, admin_class, gender, avatar_url, feature_vector
         FROM student
         WHERE user_id IN
         <foreach collection="userIds" item="userId" open="(" separator="," close=")">
@@ -27,16 +27,17 @@
     </select>
 
     <insert id="insert">
-        INSERT INTO student (user_id, student_number, admin_class, gender, feature_vector)
-        VALUES (#{userId}, #{studentNumber}, #{adminClass}, #{gender}, #{featureVector})
+        INSERT INTO student (user_id, student_number, admin_class, gender, avatar_url, feature_vector)
+        VALUES (#{userId}, #{studentNumber}, #{adminClass}, #{gender}, #{avatarUrl}, #{featureVector})
     </insert>
 
     <update id="update">
-        UPDATE students
+        UPDATE student
         <set>
             <if test="studentNumber != null">student_number = #{studentNumber},</if>
             <if test="adminClass != null">admin_class = #{adminClass},</if>
             <if test="gender != null">gender = #{gender},</if>
+            <if test="avatarUrl != null">avatar_url = #{avatarUrl},</if>
             <if test="featureVector != null">feature_vector = #{featureVector},</if>
         </set>
         WHERE user_id = #{userId}
@@ -49,7 +50,7 @@
     </update>
 
     <update id="updateFaceImageKey">
-        UPDATE user
+        UPDATE student
         SET avatar_url = #{avatarUrl}
         WHERE user_id = #{userId}
     </update>

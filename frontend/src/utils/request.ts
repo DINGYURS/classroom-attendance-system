@@ -15,7 +15,8 @@ instance.interceptors.request.use(
   (config) => {
     const authStore = useAuthStore()
     if (authStore.userInfo.token) {
-      config.headers.Authorization = authStore.userInfo.token
+      // 后端规定的字段名为 token
+      config.headers['token'] = authStore.userInfo.token
     }
     return config
   },

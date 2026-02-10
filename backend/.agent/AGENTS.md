@@ -14,26 +14,60 @@
 
 ## 前端
 
-### 开发规范
+### 1. 项目架构概览
 
-- 使用 TypeScript，确保类型安全
-- 组件使用函数式组件 + Hooks
-- 使用 Tailwind CSS 编写样式
-- 使用 Vite5 作为构建工具
-- 使用 Vue Router 作为路由组件
-- 采用企业级开发规范
-- 使用pnpm作为包管理工具
+- **单模块 Vite 架构**：使用单一 `vite.config.ts` 管理构建与开发配置。
+- **技术栈**：Vue 3 + TypeScript + Pinia + Vue Router。
+- **UI 组件库**：Element Plus + Tailwind CSS。
+- **配置方式**：`vite.config.ts` + TypeScript 类型定义。
+- **资源组织**：API 接口按角色(admin/student)分类，类型定义按功能模块划分。
+- **包管理工具**：pnpm
 
-### 代码风格
-- 使用 ESLint 和 Prettier
-- 组件名使用 PascalCase
-- 函数名使用 camelCase
-- 常量使用 UPPER_SNAKE_CASE
+### 2. 目录与包规范
 
-### 注意事项
-- 保持代码简洁，避免过度设计
-- 优先实现核心功能
-- 确保移动端适配
+#### 2.1 `src/` 目录
+
+- `api/`: API 接口层
+- `assets/`: 静态资源（图片、字体等）。
+- `components/`: 公共组件。
+- `composables/`: Vue 组合式函数。
+- `router/`: 路由配置。
+- `stores/`: Pinia 状态管理。
+- `style/`: 全局样式。
+- `types/`: TypeScript 类型定义。
+
+- `utils/`: 通用工具函数。
+- `views/`: 页面视图，按角色分类。
+- `App.vue`: 根组件。
+- `main.ts`: 应用入口。
+
+### 3. 代码组织与分层规范
+
+- **Views** 仅处理页面展示与用户交互，不写复杂业务逻辑。
+- **API** 负责接口请求与数据获取，按角色（admin/student）分类管理。
+- **Stores** 负责全局状态管理（用户信息、Token），使用 Pinia 持久化。
+- **Utils** 封装通用工具函数，统一处理 HTTP 请求、错误提示等。
+- **Types** 集中定义 TypeScript 类型，确保类型安全。
+- **Composables** 封装可复用的组合式逻辑（如图表封装）。
+- **Router** 管理页面路由与导航守卫，实现权限控制。
+
+### 4. 代码风格与约定
+
+- **命名**：文件夹使用小写，Vue 组件使用 PascalCase。
+- **路径别名**：使用 `@` 指向 `src/` 目录。
+- **组件导入**：使用 `unplugin-auto-import` 自动导入 Vue API。
+- **样式**：使用 Tailwind CSS 。
+- **路由守卫**：未登录用户强制跳转登录页，根据角色动态显示菜单。
+
+### 5. 开发时的建议约束
+
+- 保持目录结构一致，便于复用与扩展。
+- 接口按角色分类，类型定义按功能模块划分。
+- 统一使用 Axios 封装请求，自动处理 Token 与错误。
+- 页面组件使用 `<script setup>` 语法糖。
+- 样式优先使用 Tailwind CSS，保持一致性。
+
+
 
 ## 后端
 

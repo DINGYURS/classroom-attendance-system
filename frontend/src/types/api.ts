@@ -29,3 +29,10 @@ export interface UserRegisterDTO {
   adminClass?: string
   gender?: number // 1-Male, 2-Female
 }
+
+// 教师信息修改
+export interface TeacherUpdateDTO {
+  jobNumber?: string
+  password?: string
+  realName?: string
+}

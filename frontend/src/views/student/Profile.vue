@@ -61,7 +61,7 @@ const activities = [
              
              <!-- Hover Action -->
              <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-               <el-button type="primary" size="small">更新照片</el-button>
+               <el-button type="primary" size="small" @click="$router.push('/student/face-register')">更新照片</el-button>
              </div>
           </div>
           

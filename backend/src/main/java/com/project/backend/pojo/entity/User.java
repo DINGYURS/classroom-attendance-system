@@ -43,11 +43,6 @@ public class User implements Serializable {
     private Integer role;
 
     /**
-     * 头像地址（MinIO）
-     */
-    private String avatarUrl;
-
-    /**
      * 创建时间
      */
     private LocalDateTime createTime;

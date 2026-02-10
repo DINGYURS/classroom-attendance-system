@@ -1,4 +1,4 @@
-package com.project.backend.controller;
+﻿package com.project.backend.controller;
 
 import com.project.backend.pojo.dto.CourseDTO;
 import com.project.backend.pojo.result.Result;

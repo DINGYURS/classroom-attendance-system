@@ -1,31 +1,106 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { 
   Menu as IconMenu, 
   User, 
-  Setting, 
   Fold, 
   Expand,
   Monitor,
-  SwitchButton
+  SwitchButton,
+  Postcard,
+  Lock,
+  Key
 } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { useAuthStore } from '@/stores/auth'
+import { updateTeacherProfile } from '@/api/teacher'
 
 const isCollapse = ref(false)
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 
-// Mock user info - should come from Pinia store
-const userRole = ref('teacher') // 'teacher' | 'student'
-const userName = ref(' 张老师')
+// User Info
+const isTeacher = computed(() => authStore.isTeacher)
+const userName = computed(() => authStore.userInfo.realName || authStore.userInfo.username || '用户')
+const userInitial = computed(() => userName.value ? userName.value.charAt(0) : 'U')
 
 const toggleSidebar = () => {
   isCollapse.value = !isCollapse.value
 }
 
-const handleLogout = () => {
-  // TODO: Implement logout logic
-  router.push('/login')
+const handleCommand = (command: string) => {
+  if (command === 'logout') {
+    authStore.logout()
+  } else if (command === 'profile') {
+    if (authStore.isTeacher) {
+      openProfileDialog()
+    } else {
+      router.push('/student/profile')
+    }
+  }
+}
+
+// 教师个人中心对话框
+const showProfileDialog = ref(false)
+const profileLoading = ref(false)
+const profileForm = reactive({
+  realName: '',
+  jobNumber: '',
+  password: '',
+  confirmPassword: ''
+})
+
+const openProfileDialog = () => {
+  profileForm.realName = authStore.userInfo.realName
+  profileForm.jobNumber = authStore.userInfo.username
+  profileForm.password = ''
+  profileForm.confirmPassword = ''
+  showProfileDialog.value = true
+}
+
+const handleUpdateProfile = async () => {
+  if (!profileForm.realName || !profileForm.jobNumber) {
+    ElMessage.warning('姓名和工号不能为空')
+    return
+  }
+
+  if (profileForm.password && profileForm.password !== profileForm.confirmPassword) {
+    ElMessage.warning('两次输入的密码不一致')
+    return
+  }
+  
+  profileLoading.value = true
+  try {
+    await updateTeacherProfile({
+      realName: profileForm.realName,
+      jobNumber: profileForm.jobNumber,
+      password: profileForm.password || undefined
+    })
+    
+    // 如果修改了密码，要求重新登录
+    if (profileForm.password) {
+      ElMessage.success('密码修改成功，请使用新密码重新登录')
+      showProfileDialog.value = false
+      // 延迟一秒退出，让用户看清提示
+      setTimeout(() => {
+        authStore.logout()
+      }, 1000)
+    } else {
+      // 仅更新了基本信息
+      authStore.updateUserInfo({
+        realName: profileForm.realName,
+        username: profileForm.jobNumber
+      })
+      ElMessage.success('个人信息更新成功')
+      showProfileDialog.value = false
+    }
+  } catch (error) {
+    console.error(error)
+  } finally {
+    profileLoading.value = false
+  }
 }
 
 const activeMenu = computed(() => route.path)
@@ -54,7 +129,7 @@ const activeMenu = computed(() => route.path)
         router
       >
         <!-- Teacher Menus -->
-        <template v-if="userRole === 'teacher'">
+        <template v-if="isTeacher">
           <el-menu-item index="/teacher/dashboard">
             <el-icon><Monitor /></el-icon>
             <template #title>工作台</template>
@@ -66,33 +141,13 @@ const activeMenu = computed(() => route.path)
         </template>
 
         <!-- Student Menus -->
-        <template v-if="userRole === 'student'">
+        <template v-if="!isTeacher">
           <el-menu-item index="/student/profile">
             <el-icon><User /></el-icon>
             <template #title>个人中心</template>
           </el-menu-item>
         </template>
       </el-menu>
-
-      <div class="p-4 border-t border-gray-100">
-        <div v-if="!isCollapse" class="flex items-center gap-3 mb-4 px-2">
-          <el-avatar :size="36" class="bg-blue-100 text-blue-600">{{ userName.charAt(0) }}</el-avatar>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-gray-900 truncate">{{ userName }}</p>
-            <p class="text-xs text-gray-500 truncate">{{ userRole === 'teacher' ? '教师' : '学生' }}</p>
-          </div>
-        </div>
-        <el-button 
-          type="danger" 
-          plain 
-          class="w-full justify-start" 
-          :class="{ 'px-2': isCollapse }"
-          @click="handleLogout"
-        >
-          <el-icon><SwitchButton /></el-icon>
-          <span v-if="!isCollapse" class="ml-2">退出登录</span>
-        </el-button>
-      </div>
     </aside>
 
     <!-- Main Content -->
@@ -113,10 +168,31 @@ const activeMenu = computed(() => route.path)
           </el-breadcrumb>
         </div>
 
+        <!-- Right Side User Dropdown -->
         <div class="flex items-center gap-4">
-          <el-button circle plain>
-            <el-icon><Setting /></el-icon>
-          </el-button>
+          <el-dropdown trigger="hover" @command="handleCommand" popper-class="user-dropdown-popper">
+            <span class="flex items-center gap-2 cursor-pointer outline-none transition-opacity hover:opacity-80">
+              <el-avatar :size="36" class="bg-blue-100 text-blue-600 font-medium select-none">
+                {{ userInitial }}
+              </el-avatar>
+            </span>
+            <template #dropdown>
+              <el-dropdown-menu class="min-w-[180px]">
+                <!-- User Info Header -->
+                <div class="px-4 py-3 border-b border-gray-100 mb-1">
+                  <p class="text-sm font-bold text-gray-900 truncate">{{ userName }}</p>
+                  <p class="text-xs text-gray-500 mt-1">{{ isTeacher ? '教师' : '学生' }}</p>
+                </div>
+                
+                <el-dropdown-item command="profile">
+                  <el-icon><User /></el-icon> 个人中心
+                </el-dropdown-item>
+                <el-dropdown-item command="logout" class="danger-item">
+                  <el-icon><SwitchButton /></el-icon> 退出登录
+                </el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </header>
 
@@ -129,6 +205,53 @@ const activeMenu = computed(() => route.path)
         </router-view>
       </main>
     </div>
+
+    <!-- 教师个人中心对话框 -->
+    <el-dialog
+      v-model="showProfileDialog"
+      title="个人中心"
+      width="400px"
+      append-to-body
+      destroy-on-close
+      class="profile-dialog"
+    >
+      <div class="py-2">
+        <el-form :model="profileForm" label-position="top">
+          <el-form-item label="真实姓名" required>
+            <el-input v-model="profileForm.realName" :prefix-icon="User" placeholder="请输入姓名" />
+          </el-form-item>
+          <el-form-item label="工号" required>
+            <el-input v-model="profileForm.jobNumber" :prefix-icon="Postcard" placeholder="请输入工号" />
+          </el-form-item>
+          <el-form-item label="新密码">
+            <el-input 
+              v-model="profileForm.password" 
+              type="password" 
+              :prefix-icon="Lock" 
+              placeholder="不修改请留空" 
+              show-password 
+            />
+          </el-form-item>
+          <el-form-item label="确认新密码" v-if="profileForm.password">
+            <el-input 
+              v-model="profileForm.confirmPassword" 
+              type="password" 
+              :prefix-icon="Key" 
+              placeholder="请再次输入新密码" 
+              show-password 
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <el-button @click="showProfileDialog = false">取消</el-button>
+          <el-button type="primary" :loading="profileLoading" @click="handleUpdateProfile">
+            保存修改
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -153,5 +276,16 @@ const activeMenu = computed(() => route.path)
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+</style>
+
+<style>
+.user-dropdown-popper .el-dropdown-menu__item.danger-item {
+  color: var(--el-color-danger) !important;
+}
+
+.user-dropdown-popper .el-dropdown-menu__item.danger-item:hover {
+  color: var(--el-color-danger) !important;
+  background-color: var(--el-color-danger-light-9) !important;
 }
 </style>

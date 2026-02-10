@@ -125,7 +125,7 @@ const handleRegister = async () => {
             <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
               <el-icon :size="20"><VideoCamera /></el-icon>
             </div>
-            <span class="text-xl font-bold tracking-wide">RollCall 系统</span>
+            <span class="text-xl font-bold tracking-wide">课堂考勤系统</span>
           </div>
           
           <h1 class="text-3xl font-bold mb-4 leading-tight">
@@ -190,7 +190,7 @@ const handleRegister = async () => {
           <!-- Shared: Username -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1.5 ml-1">
-              {{ (isRegister && activeTab === 'teacher') ? '工号' : '学号' }}
+              {{ isRegister ? (activeTab === 'teacher' ? '工号' : '学号') : '账号' }}
             </label>
             <el-input 
               v-if="isRegister"
@@ -203,7 +203,7 @@ const handleRegister = async () => {
               v-else
               v-model="loginForm.username"
               :prefix-icon="User"
-              placeholder="请输入学生学号"
+              placeholder="请输入账号"
               size="large"
             />
           </div>
