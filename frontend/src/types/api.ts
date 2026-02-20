@@ -18,6 +18,7 @@ export interface UserLoginVO {
   role: number // 1-Teacher, 2-Student
   avatarUrl: string
   token: string
+  adminClass?: string
 }
 
 // 用户注册
@@ -35,4 +36,25 @@ export interface TeacherUpdateDTO {
   jobNumber?: string
   password?: string
   realName?: string
+}
+
+// 学生信息修改
+export interface StudentUpdateDTO {
+  username?: string // 学号
+  password?: string // 新密码
+  realName?: string // 姓名
+}
+
+export interface StudentVO {
+  username: string
+  realName: string
+  adminClass: string
+  avatarUrl: string
+}
+
+export interface AttendanceRecordVO {
+  id: number
+  courseName: string
+  status: number
+  createTime: string
 }

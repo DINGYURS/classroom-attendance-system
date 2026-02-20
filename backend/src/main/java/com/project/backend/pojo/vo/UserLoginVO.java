@@ -35,4 +35,7 @@ public class UserLoginVO implements Serializable {
 
     @Schema(description = "JWT 令牌")
     private String token;
+
+    @Schema(description = "行政班级")
+    private String adminClass;
 }

@@ -45,7 +45,7 @@ instance.interceptors.response.use(
     }
   },
   (error) => {
-    console.log('err' + error)
+    console.log('error:' + error)
     let message = error.message || 'Request Error'
     if (error.response && error.response.status === 401) {
       message = '登录已过期，请重新登录'

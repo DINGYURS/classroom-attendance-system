@@ -13,19 +13,19 @@
     </resultMap>
 
     <select id="findById" resultMap="BaseResultMap">
-        SELECT * FROM attendance_records WHERE record_id = #{recordId}
+        SELECT * FROM attendance_record WHERE record_id = #{recordId}
     </select>
 
     <select id="findBySessionId" resultMap="BaseResultMap">
-        SELECT * FROM attendance_records WHERE session_id = #{sessionId}
+        SELECT * FROM attendance_record WHERE session_id = #{sessionId}
     </select>
 
     <select id="findByStudentId" resultMap="BaseResultMap">
-        SELECT * FROM attendance_records WHERE student_id = #{studentId} ORDER BY record_id DESC
+        SELECT * FROM attendance_record WHERE student_id = #{studentId} ORDER BY record_id DESC
     </select>
 
     <insert id="batchInsert" parameterType="list">
-        INSERT INTO attendance_records (session_id, student_id, status)
+        INSERT INTO attendance_record (session_id, student_id, status)
         VALUES
         <foreach collection="list" item="item" separator=",">
             (#{item.sessionId}, #{item.studentId}, #{item.status})
@@ -33,20 +33,19 @@
     </insert>
 
     <update id="update">
-        UPDATE attendance_records
+        UPDATE attendance_record
         SET status = #{status},
-            similarity_score = #{similarityScore},
-            recognize_time = #{recognizeTime}
+            similarity_score = #{similarityScore}
         WHERE record_id = #{recordId}
     </update>
 
     <update id="updateStatus">
-        UPDATE attendance_records
-        SET status = #{status}, similarity_score = #{similarityScore}, recognize_time = NOW()
+        UPDATE attendance_record
+        SET status = #{status}, similarity_score = #{similarityScore}
         WHERE session_id = #{sessionId} AND student_id = #{studentId}
     </update>
 
     <select id="countBySessionIdAndStatus" resultType="java.lang.Integer">
-        SELECT COUNT(*) FROM attendance_records WHERE session_id = #{sessionId} AND status = #{status}
+        SELECT COUNT(*) FROM attendance_record WHERE session_id = #{sessionId} AND status = #{status}
     </select>
 </mapper>

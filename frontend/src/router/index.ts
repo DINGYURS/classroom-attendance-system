@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AppLayout from '../components/layout/AppLayout.vue'
+import StudentLayout from '../components/layout/StudentLayout.vue'
 import Login from '../views/auth/Login.vue'
 import { useAuthStore } from '@/stores/auth'
 
@@ -44,7 +45,7 @@ const router = createRouter({
     },
     {
       path: '/student',
-      component: AppLayout,
+      component: StudentLayout,
       redirect: '/student/profile',
       meta: { title: '学生端' },
       children: [

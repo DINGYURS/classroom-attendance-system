@@ -1,84 +1,230 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Camera, Checked, List } from '@element-plus/icons-vue'
+import { ref, reactive, onMounted } from 'vue'
+import { Camera, List, Edit, Key, User, Checked, Warning, ArrowRight } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import type { FormInstance, FormRules } from 'element-plus'
+import { updateStudentInfo, getAttendanceRecords } from '@/api/student'
+import { useAuthStore } from '@/stores/auth'
 
-const studentInfo = ref({
-  name: '张同学',
-  id: '2023001056',
-  class: '计算机科学与技术 2301',
-  avatar: '',
-  faceRegistered: true
+const authStore = useAuthStore()
+const loading = ref(false)
+
+import { computed } from 'vue'
+const studentInfo = computed(() => {
+  const user = authStore.userInfo
+  return {
+    name: user.realName || user.username || '未知姓名',
+    id: user.username || '',
+    className: user.adminClass || '暂无班级',
+    avatar: user.avatarUrl || '',
+    faceRegistered: authStore.isFaceRegistered
+  }
 })
 
-const activities = [
-  { content: '《Java程序设计》考勤 - 正常出席', timestamp: '2026-02-07 14:05', type: 'primary', icon: Checked },
-  { content: '《计算机网络》考勤 - 正常出席', timestamp: '2026-02-06 10:02', type: 'primary', icon: Checked },
-  { content: '《高等数学》考勤 - 迟到', timestamp: '2026-02-05 08:15', type: 'warning', icon: List },
-]
+const activities = ref<any[]>([])
+
+// Dialog
+const dialogVisible = ref(false)
+const formRef = ref<FormInstance>()
+const form = reactive({
+  realName: '',
+  password: '',
+  confirmPassword: ''
+})
+
+const validatePass2 = (_rule: any, value: any, callback: any) => {
+  if (value === '') {
+    if (form.password !== '') {
+      callback(new Error('请再次输入密码以确认'))
+    } else {
+      callback()
+    }
+  } else if (value !== form.password) {
+    callback(new Error('两次输入密码不一致!'))
+  } else {
+    callback()
+  }
+}
+
+const rules = reactive<FormRules>({
+  realName: [
+    { required: true, message: '请输入姓名', trigger: 'blur' },
+    { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
+  ],
+  password: [
+    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { validator: validatePass2, trigger: 'blur' }
+  ]
+})
+
+const getStatusType = (status: number) => {
+  // 0: 未签到, 1: 正常, 2: 迟到, 3: 早退, 4: 缺勤, 5: 请假
+  switch (status) {
+    case 1: return 'success'
+    case 2: return 'warning'
+    case 3: return 'warning'
+    case 4: return 'danger'
+    case 5: return 'info'
+    default: return 'info'
+  }
+}
+
+const getStatusText = (status: number) => {
+  switch (status) {
+    case 1: return '正常出席'
+    case 2: return '迟到'
+    case 3: return '早退'
+    case 4: return '缺勤'
+     case 5: return '请假'
+    default: return '未签到'
+  }
+}
+
+const fetchData = async () => {
+  
+  try {
+    const res = await getAttendanceRecords()
+    if (res && res.code === 1) {
+      activities.value = (res.data || []).map((item: any) => ({
+        content: `《${item.courseName || '未知课程'}》考勤 - ${getStatusText(item.status)}`,
+        timestamp: item.createTime, 
+        type: getStatusType(item.status),
+        icon: item.status === 1 ? Checked : (item.status === 4 ? Warning : List)
+      }))
+    }
+  } catch (error) {
+    console.error('获取考勤记录失败', error)
+  }
+}
+
+const handleEdit = () => {
+  form.realName = studentInfo.value.name
+  form.password = ''
+  form.confirmPassword = ''
+  dialogVisible.value = true
+}
+
+const submitForm = async (formEl: FormInstance | undefined) => {
+  if (!formEl) return
+  await formEl.validate(async (valid) => {
+    if (valid) {
+      loading.value = true
+      try {
+        const payload: any = {
+          realName: form.realName
+        }
+        if (form.password) {
+          payload.password = form.password
+        }
+        
+        const res = await updateStudentInfo(payload)
+        if (res && res.code === 1) {
+          ElMessage.success('个人信息修改成功')
+          dialogVisible.value = false
+          
+          // 更新 Store 中的信息
+          authStore.updateUserInfo({ 
+            realName: form.realName 
+          })
+          
+          // 更新页面显示
+        }
+      } catch (error) {
+        console.error(error)
+      } finally {
+        loading.value = false
+      }
+    }
+  })
+}
+
+onMounted(() => {
+  fetchData()
+})
 </script>
 
 <template>
-  <div class="max-w-4xl mx-auto space-y-6">
-    <!-- Profile Card -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div class="h-32 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
-      <div class="px-8 pb-8 flex flex-col md:flex-row items-start gap-6 -mt-12">
-        <el-avatar :size="100" class="border-4 border-white shadow-md bg-white text-3xl font-bold text-gray-400">
-          {{ studentInfo.name.charAt(0) }}
-        </el-avatar>
-        
-        <div class="mt-14 md:mt-12 flex-1 space-y-1">
-          <h1 class="text-2xl font-bold text-gray-900">{{ studentInfo.name }}</h1>
-          <p class="text-gray-500 flex items-center gap-2">
-             <span class="bg-gray-100 px-2 py-0.5 rounded text-xs font-mono">{{ studentInfo.id }}</span>
-             <span>{{ studentInfo.class }}</span>
-          </p>
-        </div>
+  <div class="min-h-full bg-gray-50 pb-6">
+    <!-- Top Banner & Profile Header -->
+    <div class="bg-blue-600 pt-8 pb-16 px-4 relative overflow-hidden">
+      <!-- Decorational background shapes -->
+      <div class="absolute top-0 left-0 w-full h-full overflow-hidden opacity-20 pointer-events-none">
+        <div class="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-white mix-blend-overlay"></div>
+        <div class="absolute top-20 -left-10 w-24 h-24 rounded-full bg-white mix-blend-overlay"></div>
+      </div>
 
-        <div class="mt-14 md:mt-12">
-           <el-button type="primary" plain>编辑资料</el-button>
+      <div class="relative z-10 flex flex-col items-center justify-center text-center">
+        <el-avatar :size="84" class="border-4 border-white/30 shadow-sm bg-white text-3xl font-bold text-gray-400 mb-4 transition-transform hover:scale-105">
+           <span v-if="!studentInfo.avatar" class="text-blue-600">{{ studentInfo.name.charAt(0) }}</span>
+           <img v-else :src="studentInfo.avatar" class="w-full h-full object-cover" />
+        </el-avatar>
+        <h1 class="text-2xl font-bold text-white mb-1 flex items-center justify-center gap-2">
+          {{ studentInfo.name }}
+          <el-icon class="text-emerald-400 text-lg" v-if="studentInfo.faceRegistered"><Checked /></el-icon>
+        </h1>
+        <div class="flex items-center justify-center gap-3 text-blue-100 text-sm">
+           <span class="bg-blue-700/50 px-2 py-0.5 rounded-full font-mono">{{ studentInfo.id }}</span>
+           <span>{{ studentInfo.className }}</span>
         </div>
       </div>
     </div>
 
-    <!-- Layout Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <!-- Left: Face Registration -->
-      <div class="md:col-span-1 space-y-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <el-icon class="text-blue-600"><Camera /></el-icon> 人脸底库
-          </h3>
-          
-          <div class="aspect-square bg-gray-50 rounded-lg border flow-root relative overflow-hidden group">
-             <div v-if="studentInfo.faceRegistered" class="absolute inset-0 flex items-center justify-center bg-emerald-50 text-emerald-600 flex-col">
-                <el-icon :size="48"><Checked /></el-icon>
-                <span class="mt-2 font-medium">已录入人脸</span>
-             </div>
-             <div v-else class="absolute inset-0 flex items-center justify-center text-gray-400 flex-col">
-                <span class="text-sm">未录入</span>
-             </div>
-             
-             <!-- Hover Action -->
-             <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-               <el-button type="primary" size="small" @click="$router.push('/student/face-register')">更新照片</el-button>
-             </div>
+    <!-- Main Content Overlapping Header -->
+    <div class="px-4 -mt-10 relative z-20 space-y-4 max-w-lg mx-auto">
+      
+      <!-- Quick Actions / Face DB Card -->
+      <div class="bg-white rounded-2xl shadow-xs p-5 flex items-center justify-between border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" @click="$router.push('/student/face-register')">
+        <div class="flex items-center gap-4">
+          <div :class="['w-12 h-12 rounded-full flex items-center justify-center text-xl transition-colors', studentInfo.faceRegistered ? 'bg-emerald-50 text-emerald-500' : 'bg-orange-50 text-orange-500']">
+            <el-icon><Camera /></el-icon>
           </div>
-          
-          <p class="text-xs text-gray-400 mt-3 leading-relaxed">
-            * 请上传清晰的本人正面免冠照片，请勿使用美颜或佩戴墨镜。照片将用于课堂考勤比对。
-          </p>
+          <div>
+            <h3 class="font-bold text-gray-800 tracking-wide text-base">人脸底库</h3>
+            <p class="text-xs mt-1" :class="studentInfo.faceRegistered ? 'text-emerald-600' : 'text-orange-500'">
+              {{ studentInfo.faceRegistered ? '已录入，点击可更新' : '未录入，点击立即拍摄' }}
+            </p>
+          </div>
+        </div>
+        <div class="text-gray-300">
+           <el-icon><ArrowRight /></el-icon>
         </div>
       </div>
 
-      <!-- Right: Attendance History -->
-      <div class="md:col-span-2">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 min-h-[400px]">
-          <h3 class="font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <el-icon class="text-blue-600"><List /></el-icon> 近期考勤记录
-          </h3>
+      <!-- Edit Profile Action Card -->
+      <div class="bg-white rounded-2xl shadow-xs p-5 flex items-center justify-between border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" @click="handleEdit">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xl">
+            <el-icon><Edit /></el-icon>
+          </div>
+          <div>
+            <h3 class="font-bold text-gray-800 tracking-wide text-base">编辑资料</h3>
+            <p class="text-xs text-gray-500 mt-1">设置密码或修改基本信息</p>
+          </div>
+        </div>
+        <div class="text-gray-300">
+           <el-icon><ArrowRight /></el-icon>
+        </div>
+      </div>
 
-          <el-timeline>
+      <!-- Attendance Records -->
+      <div class="bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-50/80 bg-gray-50/50 flex items-center justify-between">
+          <h3 class="font-bold text-gray-800 flex items-center gap-2 text-base tracking-wide">
+            <el-icon class="text-blue-500"><List /></el-icon> 最近考勤
+          </h3>
+        </div>
+        
+        <div class="p-5">
+          <el-skeleton v-if="loading && activities.length === 0" :rows="3" animated />
+          
+          <div v-else-if="activities.length === 0" class="py-8 text-center flex flex-col items-center justify-center text-gray-400">
+            <el-icon class="text-4xl text-gray-200 mb-2"><List /></el-icon>
+            <span class="text-sm">暂无考勤记录</span>
+          </div>
+
+          <el-timeline v-else class="pl-2 pr-1 mobile-timeline">
             <el-timeline-item
               v-for="(activity, index) in activities"
               :key="index"
@@ -87,14 +233,110 @@ const activities = [
               :icon="activity.icon"
               size="large"
             >
-              {{ activity.content }}
+              <div class="text-sm text-gray-800 leading-relaxed font-medium">
+                {{ activity.content }}
+              </div>
             </el-timeline-item>
-             <el-timeline-item timestamp="..." type="info" center>
-               更多历史记录
-             </el-timeline-item>
           </el-timeline>
         </div>
       </div>
     </div>
+
+    <!-- Edit Profile Dialog (Mobile Adapted) -->
+    <el-dialog
+      v-model="dialogVisible"
+      title="修改个人信息"
+      width="90%"
+      max-width="400px"
+      :close-on-click-modal="false"
+      destroy-on-close
+      class="mobile-friendly-dialog mt-20"
+      :show-close="false"
+    >
+      <el-form :model="form" :rules="rules" ref="formRef" label-position="top" class="mt-2">
+        <el-form-item label="真实姓名" prop="realName">
+          <el-input v-model="form.realName" placeholder="请输入真实姓名" :prefix-icon="User" size="large" />
+        </el-form-item>
+        
+        <div class="h-4"></div>
+        <div class="text-xs text-gray-400 mb-4 flex items-center gap-2">
+           <div class="h-px bg-gray-200 flex-1"></div>
+           <span>修改密码（可选）</span>
+           <div class="h-px bg-gray-200 flex-1"></div>
+        </div>
+        
+        <el-form-item label="新密码" prop="password">
+          <el-input 
+            v-model="form.password" 
+            type="password" 
+            placeholder="不修改请留空" 
+            show-password
+            :prefix-icon="Key"
+            size="large"
+          />
+        </el-form-item>
+        
+        <el-form-item 
+          label="确认密码" 
+          prop="confirmPassword"
+          v-if="form.password"
+        >
+          <el-input 
+            v-model="form.confirmPassword" 
+            type="password" 
+            placeholder="请再次输入新密码" 
+            show-password
+            :prefix-icon="Key"
+            size="large"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="flex gap-3 pt-2">
+          <el-button @click="dialogVisible = false" class="flex-1" size="large">取消</el-button>
+          <el-button type="primary" :loading="loading" @click="submitForm(formRef)" class="flex-1" size="large">
+            保 存
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
   </div>
 </template>
+
+<style scoped>
+/* Optimize Timeline for Mobile: Reduce left padding since space is tight */
+.mobile-timeline :deep(.el-timeline-item__wrapper) {
+  padding-left: 24px;
+}
+.mobile-timeline :deep(.el-timeline-item__content) {
+  margin-top: -2px;
+}
+.mobile-timeline :deep(.el-timeline-item__timestamp) {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+/* Make Dialog more app-like */
+:deep(.mobile-friendly-dialog) {
+  border-radius: 16px;
+  overflow: hidden;
+}
+:deep(.mobile-friendly-dialog .el-dialog__header) {
+  padding: 20px 20px 10px;
+  margin-right: 0;
+  text-align: center;
+}
+:deep(.mobile-friendly-dialog .el-dialog__title) {
+  font-weight: 700;
+  color: #1f2937;
+  font-size: 18px;
+}
+:deep(.mobile-friendly-dialog .el-dialog__body) {
+  padding: 10px 24px 20px;
+}
+:deep(.mobile-friendly-dialog .el-dialog__footer) {
+  padding: 15px 24px 20px;
+  border-top: 1px solid #f3f4f6;
+}
+</style>

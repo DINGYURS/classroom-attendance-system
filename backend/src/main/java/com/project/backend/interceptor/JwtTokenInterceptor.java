@@ -50,7 +50,7 @@ public class JwtTokenInterceptor implements HandlerInterceptor {
             Claims claims = JwtUtils.parseJwt(jwtProperties.getAdminSecretKey(), token);
             Long userId = JwtUtils.getUserId(claims);
 
-            log.debug("用户 ID: {}", userId);
+            log.info("用户 ID: {}", userId);
 
             // 将用户 ID 存入上下文
             BaseContext.setCurrentId(userId);

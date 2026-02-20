@@ -1,4 +1,4 @@
-﻿package com.project.backend.service.impl;
+package com.project.backend.service.impl;
 
 import cn.hutool.crypto.digest.DigestUtil;
 import com.project.backend.constant.JwtConstants;
@@ -75,8 +75,9 @@ public class UserServiceImpl implements UserService {
         );
 
         String avatarUrl = null;
+        Student student = null;
         if (RoleConstants.ROLE_STUDENT.equals(user.getRole())) {
-            Student student = studentMapper.findByUserId(user.getUserId());
+            student = studentMapper.findByUserId(user.getUserId());
             if (student != null) {
                 avatarUrl = student.getAvatarUrl();
             }
@@ -88,6 +89,7 @@ public class UserServiceImpl implements UserService {
                 .realName(user.getRealName())
                 .role(user.getRole())
                 .avatarUrl(avatarUrl)
+                .adminClass(student != null ? student.getAdminClass() : null)
                 .token(token)
                 .build();
     }

@@ -1,68 +1,70 @@
 <script setup lang="ts">
 import { ref, shallowRef, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { Camera, RefreshLeft, Upload, Back } from '@element-plus/icons-vue'
+import { RefreshLeft, Upload, ArrowLeft, Warning } from '@element-plus/icons-vue'
 import { ElMessage, ElLoading } from 'element-plus'
-import { uploadFaceImage } from '@/api/student' // 确保你的 API 路径正确
+import { uploadFaceImage } from '@/api/student' 
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const videoRef = ref<HTMLVideoElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
 
-// 【关键保持】依然使用 shallowRef 避免 Vue 代理破坏视频流
+// Use shallowRef to avoid Vue proxy issues with MediaStream
 const stream = shallowRef<MediaStream | null>(null)
 
 const capturedImage = ref<string | null>(null)
 const isCameraOpen = ref(false)
 const uploading = ref(false)
+const cameraError = ref<string | null>(null)
 
-// 启动摄像头
+// Start Camera
 const startCamera = async () => {
-  // 1. 基础环境检查
+  cameraError.value = null
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    ElMessage.error('您的浏览器不支持摄像头访问，请使用 Chrome/Edge 并确保在 localhost 或 HTTPS 下运行。')
+    cameraError.value = '您的浏览器不支持摄像头访问，请使用 Chrome/Edge/Safari 并确保在 HTTPS 下运行。'
+    ElMessage.error(cameraError.value)
     return
   }
 
   try {
-    // 2. PC 端宽松配置：不强制指定 facingMode，优先保证分辨率
+    // Mobile optimization: prefer front camera ('user')
     const constraints = {
       video: {
-        width: { min: 640, ideal: 1280, max: 1920 },
-        height: { min: 480, ideal: 720, max: 1080 },
-        // PC端通常不需要 facingMode: 'user'，去掉它可以减少驱动兼容问题
-      }
+        facingMode: 'user', 
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: false
     }
     
-    console.log('正在请求摄像头权限...')
     stream.value = await navigator.mediaDevices.getUserMedia(constraints)
-    console.log('摄像头权限已获取，流ID:', stream.value.id)
 
-    await nextTick() // 确保 DOM 更新
+    await nextTick() 
 
     if (videoRef.value && stream.value) {
       videoRef.value.srcObject = stream.value
       
-      // 3. 显式播放，并捕获可能的自动播放策略错误
       try {
         await videoRef.value.play()
         isCameraOpen.value = true
       } catch (playError) {
-        console.error('视频自动播放失败:', playError)
-        ElMessage.warning('视频未自动播放，可能是浏览器策略限制')
+        console.error('Auto-play failed:', playError)
+        ElMessage.warning('视频未自动播放，请点按屏幕或检查设置')
       }
     }
   } catch (err: any) {
-    console.error('摄像头启动详细错误:', err)
+    console.error('Camera start error:', err)
     let msg = '无法启动摄像头'
-    // 细化错误提示
     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      msg = '访问被拒绝：请在浏览器地址栏点击“锁”图标允许摄像头权限'
+      msg = '访问被拒绝：请允许浏览器访问摄像头'
     } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-      msg = '未检测到摄像头设备，请检查连接'
+      msg = '未检测到摄像头设备'
     } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-      msg = '摄像头可能正在被其他应用（如微信/会议软件）占用'
+      msg = '摄像头可能正在被其他应用占用'
     }
+    cameraError.value = msg
     ElMessage.error(msg)
   }
 }
@@ -83,25 +85,25 @@ const capturePhoto = () => {
   const context = canvas.getContext('2d')
   
   if (context) {
-    // 设置画布尺寸
+    // Make target canvas be a square to match the circular mask perfectly if desired,
+    // or keep full frame. We keep full frame but center-cropped later when displayed.
+    // However, it's best to save the full 16:9 or 4:3 shot so recognition backend gets whole face.
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     
-    // 镜像绘制
     context.save()
+    // Mirror the image horizontally to match user experience (like a mirror)
     context.scale(-1, 1)
     context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
     context.restore()
     
-    capturedImage.value = canvas.toDataURL('image/jpeg', 0.95) // PC端可以使用更高质量
-    // PC端通常不自动停止流，体验更好，如果想停掉可以解开下面注释
-    // stopCamera() 
+    // High quality JPEG
+    capturedImage.value = canvas.toDataURL('image/jpeg', 0.95) 
   }
 }
 
 const retakePhoto = () => {
   capturedImage.value = null
-  // 如果流断了（比如之前调用了 stopCamera），重新开启
   if (!stream.value || !stream.value.active) {
     startCamera()
   }
@@ -110,34 +112,49 @@ const retakePhoto = () => {
 const handleUpload = async () => {
   if (!capturedImage.value) return
   
-  // Base64 转 File
-  const arr = capturedImage.value.split(',')
-  const mime = arr[0].match(/:(.*?);/)![1]
+  // Create non-null assertion or cast for TS
+  const base64Data = capturedImage.value as string
+  const arr = base64Data.split(',')
+  if (arr.length < 2) {
+      ElMessage.error('照片数据无效')
+      return;
+  }
+  
+  const matchResult = arr[0].match(/:(.*?);/)
+  const mime = matchResult ? matchResult[1] : 'image/jpeg'
   const bstr = atob(arr[1])
   let n = bstr.length
+  
   const u8arr = new Uint8Array(n)
   while (n--) {
     u8arr[n] = bstr.charCodeAt(n)
   }
-  const file = new File([u8arr], 'pc_face_register.jpg', { type: mime })
+  const file = new File([u8arr], 'mobile_face_register.jpg', { type: mime })
   
   const formData = new FormData()
   formData.append('file', file)
   
   const loading = ElLoading.service({
     lock: true,
-    text: '正在上传数据...',
-    background: 'rgba(255, 255, 255, 0.7)',
+    text: '正在上传人脸数据...',
+    background: 'rgba(255, 255, 255, 0.8)',
+    customClass: 'modern-loading' 
   })
   
   try {
     uploading.value = true
     await uploadFaceImage(formData)
-    ElMessage.success('人脸注册成功！即将返回...')
-    setTimeout(() => router.push('/student/profile'), 1500)
+    ElMessage.success('人脸注册成功！')
+    
+    // Update store state
+    if (!authStore.isFaceRegistered) {
+      const newUserInfo = { ...authStore.userInfo, isFaceRegistered: 1 }
+      localStorage.setItem('userInfo', JSON.stringify(newUserInfo))
+    }
+    
+    setTimeout(() => router.replace('/student/profile'), 1500)
   } catch (error) {
     console.error(error)
-    // 错误处理交由 request 拦截器
   } finally {
     loading.close()
     uploading.value = false
@@ -145,7 +162,6 @@ const handleUpload = async () => {
 }
 
 onMounted(() => {
-  // 稍微延迟一下，确保页面完全渲染
   setTimeout(() => {
     startCamera()
   }, 300)
@@ -157,194 +173,141 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="pc-container">
-    <el-card class="box-card" shadow="hover">
-      <template #header>
-        <div class="card-header">
-          <div class="flex items-center gap-2">
-            <el-button circle :icon="Back" @click="router.back()" />
-            <span class="text-xl font-bold ml-2">人脸信息采集 (PC版)</span>
-          </div>
-          <el-tag type="info" effect="plain">请正对摄像头</el-tag>
-        </div>
-      </template>
+  <div class="h-screen w-full bg-gray-50 flex flex-col items-center justify-between mx-auto overflow-hidden absolute inset-0 z-50">
+    <!-- Header Navigation -->
+    <header class="w-full h-14 md:h-16 bg-white flex items-center justify-between px-4 shadow-xs shrink-0 relative z-20">
+      <el-button link class="text-gray-600 hover:text-gray-900 px-2" @click="router.back()">
+        <el-icon :size="24"><ArrowLeft /></el-icon>
+      </el-button>
+      <span class="text-gray-800 font-bold text-lg leading-none absolute left-1/2 -translate-x-1/2">
+        人脸信息采集
+      </span>
+      <div class="w-10"></div> <!-- Placeholder for centering -->
+    </header>
 
-      <div class="content-wrapper flex gap-8">
-        <div class="camera-section relative bg-black rounded-lg overflow-hidden shadow-lg">
+    <!-- Main Content / Camera Area -->
+    <main class="flex-1 w-full flex flex-col items-center justify-center relative px-6 md:px-0 mt-4 max-w-lg mb-4">
+      
+      <!-- Instructions Title -->
+      <div class="text-center mb-8 shrink-0">
+        <h2 class="text-xl font-bold text-gray-800 mb-2">
+          {{ capturedImage ? '确认人脸信息' : '请正对摄像头' }}
+        </h2>
+        <p class="text-sm text-gray-500 max-w-[280px] mx-auto leading-relaxed">
+           {{ capturedImage ? '请确认照片清晰、面部完整' : '请将面部置于圆形取景框中，并保持光线充足' }}
+        </p>
+      </div>
+
+      <!-- Circular Camera Viewport -->
+      <div class="relative flex-none transform transition-transform duration-300">
+        <!-- Error State Fallback -->
+        <div v-if="cameraError && !capturedImage" class="w-72 h-72 rounded-full border-4 border-dashed border-gray-300 bg-gray-100 flex flex-col items-center justify-center text-gray-400 p-8 text-center mx-auto shadow-inner">
+           <el-icon :size="48" class="text-gray-300 mb-3"><Warning /></el-icon>
+           <span class="text-sm">{{ cameraError }}</span>
+           <el-button type="primary" link class="mt-4" @click="startCamera">重试</el-button>
+        </div>
+
+        <!-- Video & Masking -->
+        <div v-else class="camera-lens mx-auto w-72 h-72 md:w-80 md:h-80 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center relative shadow-lg ring-4 ring-white">
+          
+          <!-- Outer border glow effect (scanning) -->
+          <div v-if="!capturedImage && isCameraOpen" class="absolute inset-0 rounded-full border-2 border-blue-400 opacity-50 animate-pulse z-20 pointer-events-none"></div>
+
+          <!-- The Video Feed -->
           <video
             v-show="!capturedImage"
             ref="videoRef"
             autoplay
             playsinline
             muted
-            class="video-feed"
+            class="w-full h-full object-cover scale-x-[-1]"
           ></video>
 
+          <!-- Captured Image Preview -->
           <img
             v-if="capturedImage"
             :src="capturedImage"
-            class="image-preview"
+            class="w-full h-full object-cover z-10"
           />
-
-          <div v-if="!capturedImage" class="mask-overlay">
-            <div class="scan-frame">
-              <div class="scan-line"></div>
-            </div>
-            <div class="tips-text">请将面部置于框内</div>
+          
+          <!-- Silhouette Guide Pattern overlay -->
+          <div v-if="!capturedImage && isCameraOpen" class="absolute z-10 inset-0 pointer-events-none flex items-center justify-center mix-blend-overlay opacity-30">
+            <svg viewBox="0 0 200 200" width="80%" height="80%" fill="none">
+               <ellipse cx="100" cy="90" rx="60" ry="75" stroke="#ffffff" stroke-width="2" stroke-dasharray="6 6" />
+               <path d="M40 180 Q100 130 160 180" stroke="#ffffff" stroke-width="2" stroke-dasharray="6 6" />
+            </svg>
           </div>
         </div>
-
-        <div class="control-section flex flex-col justify-center gap-6">
-          <div class="instructions text-gray-500">
-            <h3 class="text-lg font-bold text-gray-700 mb-2">操作指南</h3>
-            <ul class="list-disc pl-5 space-y-2">
-              <li>保持光线充足，不要背光。</li>
-              <li>摘下帽子、口罩或深色墨镜。</li>
-              <li>正视前方，确保面部完整显示。</li>
-            </ul>
-          </div>
-
-          <div class="actions flex flex-col gap-4 mt-4">
-            <template v-if="!capturedImage">
-              <el-button 
-                type="primary" 
-                size="large" 
-                :icon="Camera" 
-                @click="capturePhoto"
-                :disabled="!isCameraOpen"
-                class="action-btn"
-              >
-                立即拍照
-              </el-button>
-            </template>
-
-            <template v-else>
-              <div class="flex gap-4">
-                <el-button 
-                  size="large" 
-                  :icon="RefreshLeft" 
-                  @click="retakePhoto"
-                  class="flex-1"
-                >
-                  重新拍摄
-                </el-button>
-                <el-button 
-                  type="success" 
-                  size="large" 
-                  :icon="Upload" 
-                  @click="handleUpload"
-                  :loading="uploading"
-                  class="flex-1"
-                >
-                  确认上传
-                </el-button>
-              </div>
-            </template>
-          </div>
-        </div>
+        
+        <!-- Subtle shadow under the lens -->
+        <div class="w-48 h-4 bg-black/5 blur-xl rounded-full absolute -bottom-6 left-1/2 -translate-x-1/2"></div>
       </div>
-    </el-card>
 
-    <canvas ref="canvasRef" style="display: none;"></canvas>
+    </main>
+
+    <!-- Bottom Controls Area -->
+    <footer class="w-full bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.04)] px-6 pt-6 pb-10 flex flex-col items-center justify-center shrink-0 max-w-lg mx-auto h-40 relative z-20">
+      
+      <!-- Capture Mode -->
+      <template v-if="!capturedImage">
+        <button 
+          class="capture-btn relative flex items-center justify-center group" 
+          @click="capturePhoto" 
+          :disabled="!isCameraOpen"
+          :class="{'opacity-50 cursor-not-allowed': !isCameraOpen}"
+        >
+          <!-- Outer Ring -->
+          <div class="w-20 h-20 rounded-full border-[5px] border-blue-100 flex items-center justify-center transition-transform duration-200 group-active:scale-95">
+             <!-- Inner Button -->
+             <div class="w-[60px] h-[60px] rounded-full bg-blue-500 shadow-md flex items-center justify-center transition-all duration-200 group-hover:bg-blue-600"></div>
+          </div>
+        </button>
+        <span class="text-xs text-gray-400 mt-4 font-medium tracking-wide text-center">点击按钮拍照</span>
+      </template>
+
+      <!-- Review Mode -->
+      <template v-else>
+        <div class="w-full flex items-center justify-around translate-y-2">
+          
+          <button class="flex flex-col items-center justify-center group outline-none" @click="retakePhoto">
+            <div class="w-14 h-14 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center mb-2 transition-all group-active:scale-90 group-hover:bg-gray-200">
+               <el-icon :size="22"><RefreshLeft /></el-icon>
+            </div>
+            <span class="text-sm font-medium text-gray-600">重拍照片</span>
+          </button>
+          
+          <button 
+            class="flex flex-col items-center justify-center group outline-none relative" 
+            @click="handleUpload" 
+            :disabled="uploading"
+          >
+            <div class="w-[72px] h-[72px] rounded-full bg-blue-500 text-white flex items-center justify-center mb-2 transition-all shadow-lg shadow-blue-500/30 group-active:scale-90 group-hover:bg-blue-600" :class="{'opacity-80': uploading}">
+               <el-icon :size="28" v-if="!uploading"><Upload /></el-icon>
+               <span v-else class="upload-spinner border-t-2 border-white border-solid rounded-full w-6 h-6 animate-spin"></span>
+            </div>
+            <span class="text-sm font-bold text-blue-600 absolute -bottom-6 whitespace-nowrap">
+              {{ uploading ? '正在上传...' : '确认使用本照片' }}
+            </span>
+          </button>
+          
+        </div>
+      </template>
+
+    </footer>
+
+    <!-- Hidden Canvas -->
+    <canvas ref="canvasRef" class="hidden"></canvas>
   </div>
 </template>
 
-<style scoped>
-.pc-container {
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background-color: #f0f2f5; /* 浅灰背景，适合 PC */
-  padding: 20px;
+<style>
+/* Global fix applied specifically to the loading overlay inside this component context */
+.modern-loading .el-loading-spinner .path {
+  stroke: #3b82f6 !important; /* Blue-500 */
 }
-
-.box-card {
-  width: 900px; /* 宽卡片 */
-  max-width: 95vw;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.camera-section {
-  width: 480px; /* 4:3 比例 */
-  height: 360px;
-  position: relative;
-  background-color: #000;
-  border-radius: 8px;
-}
-
-.video-feed, .image-preview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* 视频镜像翻转 */
-.video-feed {
-  transform: scaleX(-1);
-}
-
-/* 简单的 CSS 遮罩 */
-.mask-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  pointer-events: none; /* 穿透点击 */
-}
-
-.scan-frame {
-  width: 200px;
-  height: 240px;
-  border: 2px solid rgba(255, 255, 255, 0.8);
-  border-radius: 12px;
-  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); /* 超大阴影形成遮罩 */
-  position: relative;
-  overflow: hidden;
-}
-
-/* 扫描线动画 */
-.scan-line {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  background: #409eff;
-  box-shadow: 0 0 4px #409eff;
-  animation: scan 2s linear infinite;
-}
-
-@keyframes scan {
-  0% { top: 0; opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { top: 100%; opacity: 0; }
-}
-
-.tips-text {
-  margin-top: 16px;
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 14px;
-  background: rgba(0, 0, 0, 0.6);
-  padding: 4px 12px;
-  border-radius: 4px;
-}
-
-.control-section {
-  flex: 1;
-}
-
-.action-btn {
-  width: 100%;
-  height: 50px;
-  font-size: 16px;
+.modern-loading .el-loading-text {
+  color: #1f2937 !important; /* Gray-800 */
+  font-weight: 600;
+  margin-top: 10px;
 }
 </style>

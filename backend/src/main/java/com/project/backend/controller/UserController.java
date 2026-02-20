@@ -1,4 +1,4 @@
-﻿package com.project.backend.controller;
+package com.project.backend.controller;
 
 import com.project.backend.pojo.dto.StudentUpdateDTO;
 import com.project.backend.pojo.dto.TeacherUpdateDTO;

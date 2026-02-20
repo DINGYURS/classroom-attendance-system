@@ -13,12 +13,14 @@ export const useAuthStore = defineStore('user', () => {
     realName: "",
     role: 0,
     avatarUrl: "",
-    token: ""
+    token: "",
+    adminClass: "",
   })
 
   // 2. 权限计算属性 (参考 auth.ts)
   const isLoggedIn = computed(() => !!userInfo.value.token)
   const isTeacher = computed(() => userInfo.value.role === 1)
+  const isFaceRegistered = computed(() => !!userInfo.value.avatarUrl)
 
   // 3. 操作方法
   const loginSuccess = (data: UserLoginVO) => {
@@ -34,7 +36,7 @@ export const useAuthStore = defineStore('user', () => {
     router.replace('/login')
   }
 
-  return { userInfo, isLoggedIn, isTeacher, loginSuccess, updateUserInfo, logout }
+  return { userInfo, isLoggedIn, isTeacher, isFaceRegistered, loginSuccess, updateUserInfo, logout }
 }, {
   persist: true
 })
