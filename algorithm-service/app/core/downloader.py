@@ -40,43 +40,51 @@ class ImageDownloader:
             return self._download_from_http(image_url)
     
     def _is_minio_url(self, url: str) -> bool:
+        """
+        判断是否为 MinIO 地址。
+        若 URL 携带查询参数（预签名 URL），直接走 HTTP 下载即可，无需 SDK。
+        """
         parsed = urlparse(url)
+        # 有查询参数说明是预签名 URL，直接用 HTTP 下载
+        if parsed.query:
+            return False
         minio_host = settings.minio_endpoint.split(":")[0]
         return minio_host in parsed.netloc or "minio" in parsed.netloc.lower()
-    
+
     def _download_from_minio(self, url: str) -> Optional[np.ndarray]:
         if self._minio_client is None:
             logger.error("MinIO client not initialized")
             return None
-        
+
         try:
             parsed = urlparse(url)
+            # 只取路径部分，去掉 query string 防止 object_name 带上签名参数
             path_parts = parsed.path.strip("/").split("/", 1)
-            
+
             if len(path_parts) == 2:
                 bucket_name, object_name = path_parts
             else:
                 bucket_name = settings.minio_bucket_name
                 object_name = path_parts[0] if path_parts else ""
-            
+
             if not object_name:
                 logger.error(f"Invalid MinIO URL: {url}")
                 return None
-            
+
             response = self._minio_client.get_object(bucket_name, object_name)
             image_data = response.read()
             response.close()
             response.release_conn()
-            
+
             nparr = np.frombuffer(image_data, np.uint8)
             image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-            
+
             if image is None:
                 logger.error(f"Failed to decode image from MinIO: {url}")
                 return None
-            
+
             return cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            
+
         except Exception as e:
             logger.error(f"Failed to download from MinIO: {url}, error: {e}")
             return None

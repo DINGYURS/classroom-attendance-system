@@ -1,11 +1,11 @@
+import asyncio
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import List
 
-import numpy as np
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 
-from app.config import settings
 from app.core.downloader import get_image_downloader
 from app.core.engine import get_face_engine
 from app.schemas import (
@@ -14,148 +14,94 @@ from app.schemas import (
     DetectRequest,
     DetectResponse,
     FaceInfo,
-    RecognizeRequest,
-    RecognitionMatch,
 )
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/face", tags=["Face Recognition"])
 
+# 专用线程池，避免 CPU 密集推理阻塞 asyncio 事件循环
+_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="face_infer")
+
 
 @router.post("/extract")
 async def extract_face_feature(request: ExtractRequest) -> ApiResponse:
+    """
+    单人人脸注册：下载图片 → 提取唯一一张人脸的特征向量（512维float列表）
+    返回: { "code": 1, "data": "[0.123, ...]" }  —— data 是 JSON 序列化的 float 数组字符串
+    Java 拿到 data 后：AES 加密 → 存入数据库
+    """
     try:
         downloader = get_image_downloader()
-        image = downloader.download_image(request.imageUrl)
-        
+
+        # 图片下载（含 HTTP I/O）也放到线程池，避免 httpx 同步客户端阻塞事件循环
+        loop = asyncio.get_event_loop()
+        image = await loop.run_in_executor(
+            _executor, downloader.download_image, request.imageUrl
+        )
+
         if image is None:
-            return ApiResponse(code=1, msg="Failed to download image", data=None)
-        
+            return ApiResponse(code=0, msg="Failed to download image", data=None)
+
         engine = get_face_engine()
-        feature = engine.extract_single_face_feature(image)
-        
+
+        # CPU 密集推理放到线程池执行
+        feature = await loop.run_in_executor(
+            _executor, engine.extract_single_face_feature, image
+        )
+
         if feature is None:
-            return ApiResponse(code=1, msg="No face detected in the image", data=None)
-        
+            return ApiResponse(code=0, msg="No face detected in the image", data=None)
+
+        # 返回 JSON 字符串，Java 直接 AES 加密后存库
         feature_json = json.dumps(feature)
-        return ApiResponse(code=0, msg="success", data=feature_json)
-        
+        return ApiResponse(code=1, msg="success", data=feature_json)
+
     except Exception as e:
-        logger.error(f"Extract face feature failed: {e}")
-        return ApiResponse(code=1, msg=str(e), data=None)
+        logger.error(f"Extract face feature failed: {e}", exc_info=True)
+        return ApiResponse(code=0, msg=str(e), data=None)
+
+
+def _detect_single(downloader, engine, idx: int, image_url: str) -> DetectResponse:
+    """同步函数：下载 + 推理单张图片，在线程池中执行"""
+    image = downloader.download_image(image_url)
+    if image is None:
+        logger.warning(f"Failed to download image: {image_url}")
+        return DetectResponse(imageIndex=idx, faces=[])
+
+    faces_data = engine.detect_and_extract_all(image)
+    faces = [
+        FaceInfo(
+            bbox=face["bbox"],
+            embedding=face.get("embedding"),
+            detScore=face.get("det_score", 0.0),
+        )
+        for face in faces_data
+    ]
+    return DetectResponse(imageIndex=idx, faces=faces)
 
 
 @router.post("/detect")
 async def detect_faces(request: DetectRequest) -> ApiResponse:
+    """
+    考勤合照检测：从多张图片中检测并提取所有人脸的特征向量
+    Java 拿到结果后，在 Java 内存中与数据库学生特征做余弦相似度比对
+    返回: { "code": 1, "data": [ { "imageIndex": 0, "faces": [ { "bbox": [...], "embedding": [...], "detScore": 0.9 } ] } ] }
+    """
     try:
         downloader = get_image_downloader()
         engine = get_face_engine()
-        
+        loop = asyncio.get_event_loop()
+
+        # 每张图片串行处理（insightface 非线程安全，不并发）
         results: List[DetectResponse] = []
-        
         for idx, image_url in enumerate(request.imageUrls):
-            image = downloader.download_image(image_url)
-            
-            if image is None:
-                logger.warning(f"Failed to download image: {image_url}")
-                results.append(DetectResponse(imageIndex=idx, faces=[]))
-                continue
-            
-            faces_data = engine.detect_and_extract_all(image)
-            
-            faces = []
-            for face in faces_data:
-                faces.append(FaceInfo(
-                    bbox=face["bbox"],
-                    embedding=face.get("embedding"),
-                    detScore=face.get("det_score", 0.0)
-                ))
-            
-            results.append(DetectResponse(imageIndex=idx, faces=faces))
-        
-        return ApiResponse(code=0, msg="success", data=[r.model_dump() for r in results])
-        
+            result = await loop.run_in_executor(
+                _executor, _detect_single, downloader, engine, idx, image_url
+            )
+            results.append(result)
+
+        return ApiResponse(code=1, msg="success", data=[r.model_dump() for r in results])
+
     except Exception as e:
-        logger.error(f"Detect faces failed: {e}")
-        return ApiResponse(code=1, msg=str(e), data=None)
-
-
-@router.post("/recognize")
-async def recognize_faces(request: RecognizeRequest) -> ApiResponse:
-    try:
-        downloader = get_image_downloader()
-        engine = get_face_engine()
-        
-        all_detected_faces = []
-        
-        for image_url in request.imageUrls:
-            image = downloader.download_image(image_url)
-            if image is None:
-                continue
-            
-            faces_data = engine.detect_and_extract_all(image)
-            all_detected_faces.extend(faces_data)
-        
-        student_features = {}
-        for sf in request.studentFeatures:
-            try:
-                feature_list = json.loads(sf.featureVector)
-                student_features[sf.studentId] = np.array(feature_list, dtype=np.float32)
-            except Exception as e:
-                logger.warning(f"Failed to parse feature for student {sf.studentId}: {e}")
-        
-        matches: List[RecognitionMatch] = []
-        matched_student_ids = set()
-        unmatched_count = 0
-        
-        for face_data in all_detected_faces:
-            embedding = face_data.get("embedding")
-            if embedding is None:
-                unmatched_count += 1
-                continue
-            
-            face_embedding = np.array(embedding, dtype=np.float32)
-            
-            best_match_id = None
-            best_similarity = 0.0
-            
-            for student_id, student_embedding in student_features.items():
-                if student_id in matched_student_ids:
-                    continue
-                
-                similarity = _cosine_similarity(face_embedding, student_embedding)
-                
-                if similarity > settings.face_recognition_threshold and similarity > best_similarity:
-                    best_similarity = similarity
-                    best_match_id = student_id
-            
-            if best_match_id is not None:
-                matched_student_ids.add(best_match_id)
-                matches.append(RecognitionMatch(
-                    studentId=best_match_id,
-                    similarity=float(best_similarity),
-                    matched=True,
-                    bbox=face_data.get("bbox")
-                ))
-            else:
-                unmatched_count += 1
-        
-        return ApiResponse(
-            code=0,
-            msg="success",
-            data=[m.model_dump() for m in matches]
-        )
-        
-    except Exception as e:
-        logger.error(f"Recognize faces failed: {e}")
-        return ApiResponse(code=1, msg=str(e), data=None)
-
-
-def _cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
-    norm1 = np.linalg.norm(vec1)
-    norm2 = np.linalg.norm(vec2)
-    
-    if norm1 == 0 or norm2 == 0:
-        return 0.0
-    
-    return float(np.dot(vec1, vec2) / (norm1 * norm2))
+        logger.error(f"Detect faces failed: {e}", exc_info=True)
+        return ApiResponse(code=0, msg=str(e), data=None)

@@ -18,6 +18,7 @@ import com.project.backend.utils.AesUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -60,14 +61,18 @@ public class StudentServiceImpl implements StudentService {
             throw new BusinessException(MessageConstants.USER_NOT_FOUND);
         }
 
+        String avatarUrl = null;
+        if (student.getAvatarUrl() != null) {
+            avatarUrl = minioService.getFileUrl(student.getAvatarUrl());
+        }
+
         return StudentVO.builder()
                 .userId(user.getUserId())
                 .studentNumber(student.getStudentNumber())
                 .realName(user.getRealName())
                 .adminClass(student.getAdminClass())
                 .gender(student.getGender())
-                .avatarUrl(student.getAvatarUrl())
-                .hasFaceFeature(student.getFeatureVector() != null && !student.getFeatureVector().isEmpty())
+                .avatarUrl(avatarUrl)
                 .build();
     }
 
@@ -83,26 +88,32 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public void registerFaceByImage(String avatarUrl) {
+    public void registerFaceByImage(MultipartFile file) {
         Long userId = BaseContext.getCurrentId();
 
-        // 获取图片访问 URL
-        String imageUrl = minioService.getFileUrl(avatarUrl);
+        // 1. 上传图片到 MinIO，返回对象路径 (objectKey)
+        String objectKey = minioService.uploadFile(file, "faces");
+        log.info("学生 {} 人脸图片上传成功: {}", userId, objectKey);
 
-        // 调用 Python 服务提取人脸特征
+        // 2. 生成预签名 URL，供 Python 服务访问
+        String imageUrl = minioService.getFileUrl(objectKey);
+
+        // 3. 调用 Python 服务提取人脸特征
         String featureVector = pythonServiceClient.extractFaceFeature(imageUrl);
         if (featureVector == null || featureVector.isEmpty()) {
+            // 特征提取失败，删除已上传的图片，避免垃圾数据
+            minioService.deleteFile(objectKey);
             throw new BusinessException("人脸特征提取失败，请确保图片中有清晰的人脸");
         }
 
-        // AES 加密存储
+        // 4. AES 加密特征向量并存库
         String encryptedFeature = AesUtils.encrypt(featureVector);
         studentMapper.updateFeatureVector(userId, encryptedFeature);
 
-        // 更新学生的人脸图片路径
-        studentMapper.updateFaceImageKey(userId, avatarUrl);
+        // 5. 保存 objectKey 到 student 表
+        studentMapper.updateFaceImageKey(userId, objectKey);
 
-        log.info("学生 {} 通过图片登记人脸成功", userId);
+        log.info("学生 {} 人脸登记成功", userId);
     }
 
     @Override

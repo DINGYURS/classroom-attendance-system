@@ -116,7 +116,7 @@ const activeMenu = computed(() => route.path)
       <div class="h-16 flex items-center justify-center border-b border-gray-100">
         <div v-if="!isCollapse" class="flex items-center gap-2 px-4 transition-opacity duration-300">
           <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold">RC</div>
-          <span class="font-bold text-gray-800 text-lg whitespace-nowrap">云点名系统</span>
+          <span class="font-bold text-gray-800 text-lg whitespace-nowrap">智能考勤系统</span>
         </div>
         <div v-else class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-sm">RC</div>
       </div>

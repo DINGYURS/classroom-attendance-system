@@ -1,7 +1,5 @@
 package com.project.backend.controller;
 
-import com.project.backend.context.BaseContext;
-import com.project.backend.mapper.StudentMapper;
 import com.project.backend.pojo.result.Result;
 import com.project.backend.service.MinioService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,23 +21,6 @@ public class FileController {
     @Autowired
     private MinioService minioService;
 
-    @Autowired
-    private StudentMapper studentMapper;
-
-    /**
-     * 上传人脸图片
-     */
-    @PostMapping("/upload/face")
-    @Operation(summary = "上传人脸图片", description = "上传学生人脸照片到 MinIO，返回存储路径，并将图片地址保存到 student 表")
-    public Result<String> uploadFaceImage(@RequestParam("file") MultipartFile file) {
-        log.info("上传人脸图片: {}", file.getOriginalFilename());
-        String objectKey = minioService.uploadFile(file, "faces");
-        // 将图片路径保存到 student 表
-        Long userId = BaseContext.getCurrentId();
-        studentMapper.updateFaceImageKey(userId, objectKey);
-        log.info("学生 {} 的人脸图片地址已更新: {}", userId, objectKey);
-        return Result.success(objectKey);
-    }
 
     /**
      * 上传考勤合照

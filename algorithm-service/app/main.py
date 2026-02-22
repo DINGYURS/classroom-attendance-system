@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+import tempfile
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -19,14 +20,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _resolve_temp_dir() -> str:
+    """在 Windows 上将 Linux 风格的 /tmp/... 替换为系统临时目录"""
+    d = settings.temp_dir
+    if sys.platform == "win32" and d.startswith("/"):
+        d = os.path.join(tempfile.gettempdir(), d.lstrip("/").replace("/", os.sep))
+    return d
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting Face Recognition Algorithm Service...")
     logger.info(f"Debug mode: {settings.debug}")
     logger.info(f"MinIO endpoint: {settings.minio_endpoint}")
-    
-    os.makedirs(settings.temp_dir, exist_ok=True)
-    
+
+    temp_dir = _resolve_temp_dir()
+    os.makedirs(temp_dir, exist_ok=True)
+    logger.info(f"Temp dir: {temp_dir}")
+
     try:
         from app.core.engine import get_face_engine
         engine = get_face_engine()
@@ -34,9 +45,9 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to load models: {e}")
         raise
-    
+
     yield
-    
+
     logger.info("Shutting down Face Recognition Algorithm Service...")
 
 
@@ -82,7 +93,7 @@ async def health_check() -> HealthResponse:
 @app.get("/")
 async def root() -> ApiResponse:
     return ApiResponse(
-        code=0,
+        code=1,
         msg="Face Recognition Algorithm Service is running",
         data={
             "name": settings.app_name,
@@ -96,5 +107,6 @@ if __name__ == "__main__":
         "app.main:app",
         host=settings.host,
         port=settings.port,
-        reload=settings.debug
+        reload=settings.debug,
+        timeout_keep_alive=120,  # 推理耗时较长，保持连接 120s
     )

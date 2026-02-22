@@ -56,8 +56,8 @@ public class AttendanceController {
     @PostMapping("/recognize")
     @Operation(summary = "人脸识别", description = "上传人脸特征进行识别考勤")
     public Result<List<RecognitionResultVO>> recognizeFaces(@RequestBody FaceRecognitionDTO recognitionDTO) {
-        log.info("人脸识别: 会话ID={}, 特征数={}", recognitionDTO.getSessionId(), 
-                recognitionDTO.getFeatureVectors() != null ? recognitionDTO.getFeatureVectors().size() : 0);
+        log.info("人脸识别: 会话ID={}, 合照数={}", recognitionDTO.getSessionId(),
+                recognitionDTO.getImageKeys() != null ? recognitionDTO.getImageKeys().size() : 0);
         List<RecognitionResultVO> results = attendanceService.recognizeFaces(recognitionDTO);
         return Result.success(results);
     }

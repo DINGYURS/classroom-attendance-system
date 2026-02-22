@@ -3,58 +3,39 @@ from pydantic import BaseModel, Field
 
 
 class ApiResponse(BaseModel):
-    code: int = Field(default=0)
+    code: int = Field(default=1)  # 1=成功, 0=失败
     msg: str = Field(default="success")
     data: Optional[Any] = None
 
 
+# ── /api/face/extract ──────────────────────────────────────────────────────────
+
 class ExtractRequest(BaseModel):
-    imageUrl: str = Field(..., description="Image URL from MinIO")
+    """单人人脸特征提取请求"""
+    imageUrl: str = Field(..., description="MinIO 预签名图片 URL")
 
 
-class ExtractResponse(BaseModel):
-    featureVector: Optional[List[float]] = None
-    faceCount: int = 0
-    bbox: Optional[List[int]] = None
-
+# ── /api/face/detect ───────────────────────────────────────────────────────────
 
 class DetectRequest(BaseModel):
-    imageUrls: List[str] = Field(..., description="List of image URLs")
+    """合照人脸检测请求（考勤用）"""
+    imageUrls: List[str] = Field(..., description="合照 URL 列表")
 
 
 class FaceInfo(BaseModel):
-    bbox: List[int] = Field(..., description="Bounding box [x1, y1, x2, y2]")
-    embedding: Optional[List[float]] = None
-    detScore: float = Field(default=0.0, description="Detection confidence score")
+    """单张人脸信息"""
+    bbox: List[int] = Field(..., description="人脸边界框 [x1, y1, x2, y2]")
+    embedding: Optional[List[float]] = Field(None, description="512 维特征向量，Java 用于余弦相似度比对")
+    detScore: float = Field(default=0.0, description="人脸检测置信度")
 
 
 class DetectResponse(BaseModel):
+    """单张图片的所有人脸检测结果"""
     imageIndex: int
     faces: List[FaceInfo]
 
 
-class StudentFeature(BaseModel):
-    studentId: int
-    featureVector: str
-
-
-class RecognizeRequest(BaseModel):
-    imageUrls: List[str] = Field(..., description="List of classroom photo URLs")
-    studentFeatures: List[StudentFeature] = Field(..., description="List of student features for matching")
-
-
-class RecognitionMatch(BaseModel):
-    studentId: int
-    similarity: float
-    matched: bool
-    bbox: Optional[List[int]] = None
-
-
-class RecognizeResponse(BaseModel):
-    matches: List[RecognitionMatch]
-    totalFacesDetected: int
-    unmatchedFaces: int
-
+# ── /health ────────────────────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):
     status: str

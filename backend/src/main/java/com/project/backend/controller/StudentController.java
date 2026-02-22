@@ -1,7 +1,5 @@
 package com.project.backend.controller;
 
-import com.project.backend.pojo.dto.FaceFeatureDTO;
-import com.project.backend.pojo.dto.FaceImageUploadDTO;
 import com.project.backend.pojo.result.Result;
 import com.project.backend.pojo.vo.AttendanceRecordVO;
 import com.project.backend.pojo.vo.StudentVO;
@@ -11,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -37,24 +36,24 @@ public class StudentController {
     }
 
     /**
-     * 上传人脸特征 (直接提供特征向量)
+     * 上传人脸图片并登记人脸特征
      */
-    @PostMapping("/face")
-    @Operation(summary = "上传人脸特征", description = "直接上传人脸特征向量（前端已提取）")
-    public Result<Void> uploadFaceFeature(@RequestBody FaceFeatureDTO faceFeatureDTO) {
-        log.info("上传人脸特征");
-        studentService.uploadFaceFeature(faceFeatureDTO);
+    @PostMapping("/face/register")
+    @Operation(summary = "人脸登记", description = "上传人脸照片，后端自动存入 MinIO 并调用 Python 提取人脸特征存库")
+    public Result<Void> registerFace(@RequestParam("file") MultipartFile file) {
+        log.info("上传人脸图片进行特征登记: {}", file.getOriginalFilename());
+        studentService.registerFaceByImage(file);
         return Result.success();
     }
 
     /**
-     * 通过图片登记人脸 (推荐使用)
+     * 上传人脸特征 (直接提供特征向量，备用接口)
      */
-    @PostMapping("/face/image")
-    @Operation(summary = "通过图片登记人脸", description = "先调用 /api/file/upload/face 上传图片，再传入返回的 imageKey 进行人脸特征提取")
-    public Result<Void> registerFaceByImage(@RequestBody FaceImageUploadDTO uploadDTO) {
-        log.info("通过图片登记人脸: {}", uploadDTO.getImageKey());
-        studentService.registerFaceByImage(uploadDTO.getImageKey());
+    @PostMapping("/face/feature")
+    @Operation(summary = "直接上传人脸特征向量", description = "前端已在本地提取特征向量时使用（备用）")
+    public Result<Void> uploadFaceFeature(@RequestBody com.project.backend.pojo.dto.FaceFeatureDTO faceFeatureDTO) {
+        log.info("上传人脸特征向量");
+        studentService.uploadFaceFeature(faceFeatureDTO);
         return Result.success();
     }
 

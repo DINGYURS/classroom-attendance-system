@@ -18,6 +18,7 @@ import com.project.backend.pojo.entity.Teacher;
 import com.project.backend.pojo.entity.User;
 import com.project.backend.pojo.vo.UserLoginVO;
 import com.project.backend.properties.JwtProperties;
+import com.project.backend.service.MinioService;
 import com.project.backend.service.UserService;
 import com.project.backend.utils.JwtUtils;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +48,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private TeacherMapper teacherMapper;
+
+    @Autowired
+    private MinioService minioService;
 
     @Override
     public UserLoginVO login(UserLoginDTO userLoginDTO) {
@@ -78,8 +82,8 @@ public class UserServiceImpl implements UserService {
         Student student = null;
         if (RoleConstants.ROLE_STUDENT.equals(user.getRole())) {
             student = studentMapper.findByUserId(user.getUserId());
-            if (student != null) {
-                avatarUrl = student.getAvatarUrl();
+            if (student != null && student.getAvatarUrl() != null) {
+                avatarUrl = minioService.getFileUrl(student.getAvatarUrl());
             }
         }
 

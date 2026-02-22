@@ -10,12 +10,12 @@ class Settings(BaseSettings):
     port: int = 8000
     
     minio_endpoint: str = "localhost:9000"
-    minio_access_key: str = "minioadmin"
-    minio_secret_key: str = "minioadmin"
+    minio_access_key: str = "RollCallSystem"
+    minio_secret_key: str = "12345678"
     minio_bucket_name: str = "rollcall"
     minio_secure: bool = False
     
-    yolo_model_path: str = "weights/yolo11n.pt"
+    yolo_model_path: str = "weights/best-1280.pt"
     insightface_model_name: str = "buffalo_l"
     
     face_detection_confidence: float = 0.5

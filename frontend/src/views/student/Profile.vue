@@ -3,7 +3,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { Camera, List, Edit, Key, User, Checked, Warning, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
-import { updateStudentInfo, getAttendanceRecords } from '@/api/student'
+import { updateStudentInfo, getAttendanceRecords, getStudentInfo } from '@/api/student'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -121,15 +121,30 @@ const submitForm = async (formEl: FormInstance | undefined) => {
         
         const res = await updateStudentInfo(payload)
         if (res && res.code === 1) {
-          ElMessage.success('个人信息修改成功')
-          dialogVisible.value = false
-          
-          // 更新 Store 中的信息
-          authStore.updateUserInfo({ 
-            realName: form.realName 
-          })
-          
-          // 更新页面显示
+          if (form.password) {
+            ElMessage.error('身份信息已过期')
+            dialogVisible.value = false
+            setTimeout(() => {
+              authStore.logout()
+            }, 1000)
+          } else {
+            ElMessage.success('个人信息修改成功')
+            dialogVisible.value = false
+            
+            // 从后端重新获取最新用户信息，以确保状态一致
+            try {
+              const infoRes = await getStudentInfo()
+              if (infoRes && infoRes.code === 1) {
+                authStore.updateUserInfo({ 
+                  realName: infoRes.data.realName,
+                  avatarUrl: infoRes.data.avatarUrl,
+                  adminClass: infoRes.data.adminClass
+                })
+              }
+            } catch (err) {
+              console.error('获取最新学生信息失败', err)
+            }
+          }
         }
       } catch (error) {
         console.error(error)

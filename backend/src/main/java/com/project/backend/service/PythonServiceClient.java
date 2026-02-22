@@ -1,34 +1,31 @@
 package com.project.backend.service;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Python 算法服务客户端接口
+ * Python 只负责图像处理（特征提取），所有比对逻辑在 Java 完成。
  */
 public interface PythonServiceClient {
 
     /**
-     * 提取人脸特征向量
+     * 单人人脸注册：提取单张图片中唯一人脸的特征向量
      *
-     * @param imageUrl 人脸图片 URL (MinIO)
-     * @return 特征向量 JSON 字符串
+     * @param imageUrl MinIO 预签名图片 URL
+     * @return 特征向量 JSON 字符串（"[0.123, ...]"），用于 AES 加密后存库；失败返回 null
      */
     String extractFaceFeature(String imageUrl);
 
     /**
-     * 批量检测并识别人脸 (用于考勤)
+     * 考勤合照检测：从多张图片中检测并提取所有人脸的特征向量
      *
-     * @param imageUrls        班级合照 URL 列表
-     * @param studentFeatures  学生特征向量 Map (studentId -> featureVector)
-     * @return 识别结果列表 (studentId -> similarity)
+     * @param imageUrls 合照的 MinIO 预签名 URL 列表
+     * @return 每张人脸的 embedding，List<List<Double>>，Java 拿到后自行与数据库比对
      */
-    List<Map<String, Object>> recognizeFaces(List<String> imageUrls, Map<Long, String> studentFeatures);
+    List<List<Double>> detectFaces(List<String> imageUrls);
 
     /**
-     * 检查服务健康状态
-     *
-     * @return 是否健康
+     * 检查 Python 服务健康状态
      */
     boolean healthCheck();
 }

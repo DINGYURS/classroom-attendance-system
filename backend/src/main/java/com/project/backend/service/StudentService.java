@@ -3,6 +3,7 @@ package com.project.backend.service;
 import com.project.backend.pojo.dto.FaceFeatureDTO;
 import com.project.backend.pojo.vo.AttendanceRecordVO;
 import com.project.backend.pojo.vo.StudentVO;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -26,11 +27,11 @@ public interface StudentService {
     void uploadFaceFeature(FaceFeatureDTO faceFeatureDTO);
 
     /**
-     * 通过图片登记人脸 (调用 Python 服务提取特征)
+     * 通过图片登记人脸：上传图片到 MinIO，调用 Python 提取特征，存入数据库
      *
-     * @param imageKey MinIO 中的图片存储路径
+     * @param file 人脸图片文件
      */
-    void registerFaceByImage(String imageKey);
+    void registerFaceByImage(MultipartFile file);
 
     /**
      * 获取当前学生的考勤记录

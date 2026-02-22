@@ -1,3 +1,4 @@
+import functools
 import logging
 import os
 from typing import List, Tuple, Optional
@@ -35,6 +36,7 @@ class FaceEngine:
         model_path = settings.yolo_model_path
         if os.path.exists(model_path):
             try:
+                import torch
                 from ultralytics import YOLO
                 logger.info(f"Loading YOLO face detection model from {model_path}...")
                 self._yolo_model = YOLO(model_path)
@@ -51,11 +53,14 @@ class FaceEngine:
         try:
             self._face_analyzer = FaceAnalysis(
                 name=settings.insightface_model_name,
-                providers=['CPUExecutionProvider']  # 使用 CPU
-                # providers=['CUDAExecutionProvider', 'CPUExecutionProvider'] # 使用 GPU
+                # providers=['CPUExecutionProvider']  # 使用 CPU
+                providers=['CUDAExecutionProvider', 'CPUExecutionProvider']  # 使用 GPU，不可用时自动降级 CPU
             )
             self._face_analyzer.prepare(ctx_id=0, det_size=(640, 640))
-            logger.info("InsightFace model loaded successfully (CPU mode)")
+            # 实际 provider 由 onnxruntime 自动决定（CUDA 不可用时降级 CPU）
+            used_providers = self._face_analyzer.models[list(self._face_analyzer.models.keys())[0]].session.get_providers()
+            mode = "GPU" if "CUDAExecutionProvider" in used_providers else "CPU"
+            logger.info(f"InsightFace model loaded successfully ({mode} mode)")
         except Exception as e:
             logger.error(f"Failed to load InsightFace model: {e}")
             raise

@@ -23,13 +23,13 @@ const loginForm = reactive<UserLoginDTO>({
 
 // Register Form
 const registerForm = reactive<UserRegisterDTO & { confirmPassword?: string }>({
-  username: '', // StudentID or WorkID
+  username: '',
   password: '',
   confirmPassword: '',
   realName: '',
-  role: 2, // Default to Student (2)
-  adminClass: '', // Only for Student
-  gender: 1 // 1-Male, 2-Female
+  role: 2,
+  adminClass: '',
+  gender: 1
 })
 
 // Toggle Mode
@@ -38,7 +38,6 @@ const toggleMode = () => {
   // Reset forms/errors if needed
 }
 
-// ... (existing imports)
 
 // 处理登录
 const handleLogin = async () => {
@@ -119,17 +118,17 @@ const handleRegister = async () => {
          :class="{'h-auto': true}">
       
       <!-- Left Side - Visual -->
-      <div class="md:w-1/2 bg-gradient-to-br from-blue-600 to-indigo-700 p-12 text-white flex flex-col justify-between relative overflow-hidden">
+      <div class="md:w-1/2 bg-linear-to-br from-blue-600 to-indigo-700 p-12 text-white flex flex-col justify-between relative overflow-hidden">
         <div class="relative z-10">
           <div class="flex items-center gap-3 mb-6">
             <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center backdrop-blur-sm">
               <el-icon :size="20"><VideoCamera /></el-icon>
             </div>
-            <span class="text-xl font-bold tracking-wide">课堂考勤系统</span>
+            <span class="text-xl font-bold tracking-wide">课堂智能考勤系统</span>
           </div>
           
           <h1 class="text-3xl font-bold mb-4 leading-tight">
-            {{ isRegister ? '加入智慧课堂' : '智慧课堂' }}<br>
+            <!-- {{ isRegister ? '加入智慧课堂' : '智慧课堂' }}<br> -->
             {{ isRegister ? '开启无感考勤' : '无感化考勤解决方案' }}
           </h1>
           <p class="text-blue-100 text-sm leading-relaxed opacity-90">

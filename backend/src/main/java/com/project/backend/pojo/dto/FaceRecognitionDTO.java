@@ -22,6 +22,6 @@ public class FaceRecognitionDTO implements Serializable {
     @Schema(description = "考勤会话 ID")
     private Long sessionId;
 
-    @Schema(description = "人脸特征向量列表（多人）")
-    private List<String> featureVectors;
+    @Schema(description = "合照图片的 MinIO objectKey 列表（如 [\"attendance/xxx.jpg\"]）")
+    private List<String> imageKeys;
 }

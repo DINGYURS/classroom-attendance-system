@@ -3,7 +3,7 @@ import { ref, shallowRef, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { RefreshLeft, Upload, ArrowLeft, Warning } from '@element-plus/icons-vue'
 import { ElMessage, ElLoading } from 'element-plus'
-import { uploadFaceImage } from '@/api/student' 
+import { uploadFaceImage, getStudentInfo } from '@/api/student'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
@@ -143,16 +143,22 @@ const handleUpload = async () => {
   
   try {
     uploading.value = true
-    await uploadFaceImage(formData)
-    ElMessage.success('人脸注册成功！')
+    const res: any = await uploadFaceImage(formData)
     
-    // Update store state
-    if (!authStore.isFaceRegistered) {
-      const newUserInfo = { ...authStore.userInfo, isFaceRegistered: 1 }
-      localStorage.setItem('userInfo', JSON.stringify(newUserInfo))
+    if (res && res.code === 1) {
+      ElMessage.success('人脸录入成功！')
+      
+      const infoRes: any = await getStudentInfo()
+      if (infoRes && infoRes.code === 1 && infoRes.data) {
+        authStore.updateUserInfo({ 
+          avatarUrl: infoRes.data.avatarUrl
+        })
+      }
+      
+      setTimeout(() => router.replace('/student/profile'), 1000)
+    } else {
+      ElMessage.error(res?.message || '人脸录入失败')
     }
-    
-    setTimeout(() => router.replace('/student/profile'), 1500)
   } catch (error) {
     console.error(error)
   } finally {

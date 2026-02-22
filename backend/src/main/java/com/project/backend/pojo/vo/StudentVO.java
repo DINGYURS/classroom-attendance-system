@@ -36,6 +36,6 @@ public class StudentVO implements Serializable {
     @Schema(description = "头像地址")
     private String avatarUrl;
 
-    @Schema(description = "是否已录入人脸特征")
-    private Boolean hasFaceFeature;
+//    @Schema(description = "是否已录入人脸特征")
+//    private Boolean hasFaceFeature;
 }

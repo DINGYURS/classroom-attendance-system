@@ -14,6 +14,8 @@ import com.project.backend.pojo.vo.AttendanceSessionVO;
 import com.project.backend.pojo.vo.RecognitionResultVO;
 import com.project.backend.pojo.vo.SessionRecordVO;
 import com.project.backend.service.AttendanceService;
+import com.project.backend.service.MinioService;
+import com.project.backend.service.PythonServiceClient;
 import com.project.backend.utils.AesUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +53,12 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Autowired
     private CourseMapper courseMapper;
+
+    @Autowired
+    private MinioService minioService;
+
+    @Autowired
+    private PythonServiceClient pythonServiceClient;
 
     @Override
     @Transactional
@@ -108,31 +116,43 @@ public class AttendanceServiceImpl implements AttendanceService {
         if (session == null) {
             throw new BusinessException("考勤会话不存在或已结束");
         }
+        if (recognitionDTO.getImageKeys() == null || recognitionDTO.getImageKeys().isEmpty()) {
+            throw new BusinessException("未提供合照图片");
+        }
 
-        // 获取课程学生及其特征向量
+        // 1. 将合照 objectKey 转换为预签名 URL，供 Python 下载
+        List<String> imageUrls = new ArrayList<>();
+        for (String key : recognitionDTO.getImageKeys()) {
+            imageUrls.add(minioService.getFileUrl(key));
+        }
+
+        // 2. 调用 Python /detect，返回合照中所有检测到的人脸 embedding 列表
+        List<List<Double>> detectedEmbeddings = pythonServiceClient.detectFaces(imageUrls);
+        log.info("合照检测到人脸数: {}", detectedEmbeddings.size());
+
+        // 3. 从数据库读取该课程所有学生并解密特征向量
         List<Long> studentIds = courseStudentMapper.findStudentIdsByCourseId(session.getCourseId());
         List<Student> students = studentMapper.findByUserIds(studentIds);
 
+        // 4. 在 Java 内存中做余弦相似度比对（每张检测到的人脸 vs 全班学生）
         List<RecognitionResultVO> results = new ArrayList<>();
+        // 记录已匹配的学生，避免重复
+        java.util.Set<Long> matchedStudentIds = new java.util.HashSet<>();
 
-        // 遍历上传的人脸特征进行比对
-        for (String featureVector : recognitionDTO.getFeatureVectors()) {
-            double[] inputFeature = parseFeatureVector(featureVector);
+        for (List<Double> detectedEmbedding : detectedEmbeddings) {
+            double[] inputFeature = toDoubleArray(detectedEmbedding);
             RecognitionResultVO bestMatch = null;
             double bestSimilarity = 0;
 
             for (Student student : students) {
-                if (student.getFeatureVector() == null || student.getFeatureVector().isEmpty()) {
-                    continue;
-                }
+                if (matchedStudentIds.contains(student.getUserId())) continue;
+                if (student.getFeatureVector() == null || student.getFeatureVector().isEmpty()) continue;
 
-                // 解密并解析存储的特征向量
-                String decryptedFeature = AesUtils.decrypt(student.getFeatureVector());
-                double[] storedFeature = parseFeatureVector(decryptedFeature);
+                // AES 解密 → JSON 字符串 → double[]
+                String decryptedJson = AesUtils.decrypt(student.getFeatureVector());
+                double[] storedFeature = parseFeatureVector(decryptedJson);
 
-                // 计算余弦相似度
                 double similarity = cosineSimilarity(inputFeature, storedFeature);
-
                 if (similarity > SIMILARITY_THRESHOLD && similarity > bestSimilarity) {
                     bestSimilarity = similarity;
                     User user = userMapper.findById(student.getUserId());
@@ -147,21 +167,21 @@ public class AttendanceServiceImpl implements AttendanceService {
             }
 
             if (bestMatch != null) {
-                // 判断迟到
-                int status = 555;
+                matchedStudentIds.add(bestMatch.getStudentId());
+
+                // 判断迟到（预留，当前统一标记为已到）
+                int status = AttendanceStatus.PRESENT;
                 bestMatch.setStatus(status);
 
-                // 更新考勤记录
+                // 5. 更新考勤记录
                 attendanceRecordMapper.updateStatus(
                         recognitionDTO.getSessionId(),
                         bestMatch.getStudentId(),
                         status,
                         BigDecimal.valueOf(bestMatch.getSimilarity())
                 );
-
                 results.add(bestMatch);
             } else {
-                // 未识别到
                 results.add(RecognitionResultVO.builder()
                         .matched(false)
                         .similarity(0.0)
@@ -169,6 +189,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             }
         }
 
+        log.info("识别完成: 总人脸={}, 匹配成功={}", detectedEmbeddings.size(), matchedStudentIds.size());
         return results;
     }
 
@@ -261,6 +282,17 @@ public class AttendanceServiceImpl implements AttendanceService {
         attendanceRecordMapper.update(record);
 
         log.info("考勤状态已更新: recordId={}, status={}", updateDTO.getRecordId(), updateDTO.getStatus());
+    }
+
+    /**
+     * 将 List<Double> 转为 double[]
+     */
+    private double[] toDoubleArray(List<Double> list) {
+        double[] arr = new double[list.size()];
+        for (int i = 0; i < list.size(); i++) {
+            arr[i] = list.get(i);
+        }
+        return arr;
     }
 
     /**

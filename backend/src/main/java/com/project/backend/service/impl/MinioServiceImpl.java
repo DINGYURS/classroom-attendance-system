@@ -70,7 +70,7 @@ public class MinioServiceImpl implements MinioService {
     @Override
     public String getFileUrl(String objectKey) {
         try {
-            String url = minioClient.getPresignedObjectUrl(
+            return minioClient.getPresignedObjectUrl(
                     GetPresignedObjectUrlArgs.builder()
                             .method(Method.GET)
                             .bucket(minioProperties.getBucketName())
@@ -78,7 +78,6 @@ public class MinioServiceImpl implements MinioService {
                             .expiry(7, TimeUnit.DAYS)
                             .build()
             );
-            return url;
         } catch (Exception e) {
             log.error("获取文件 URL 失败: {}", objectKey, e);
             throw new BusinessException("获取文件 URL 失败: " + e.getMessage());

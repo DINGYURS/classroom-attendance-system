@@ -1,8 +1,3 @@
-"""
-测试脚本：使用 Ultralytics YOLO11 官方模型进行目标检测
-注意：YOLO11 官方模型是在 COCO 数据集上训练的，类别 0 是 "person"（人物），
-不是专门的人脸检测模型。如需专业人脸检测，建议后续使用 face-specific 数据集重新训练。
-"""
 import cv2
 from ultralytics import YOLO
 

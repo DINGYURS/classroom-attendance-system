@@ -23,7 +23,7 @@ const handleCommand = (command: string) => {
       <!-- Logo & Title -->
       <div class="flex items-center gap-2" @click="router.push('/student/profile')" style="cursor: pointer;">
         <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-sm md:text-base">RC</div>
-        <span class="font-bold text-gray-800 text-base md:text-lg whitespace-nowrap">云点名系统</span>
+        <span class="font-bold text-gray-800 text-base md:text-lg whitespace-nowrap">智能考勤系统</span>
       </div>
 
       <!-- Right Side Logout Button -->
