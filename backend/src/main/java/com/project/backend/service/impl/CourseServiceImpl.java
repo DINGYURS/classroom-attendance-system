@@ -110,13 +110,15 @@ public class CourseServiceImpl implements CourseService {
         List<CourseVO> result = new ArrayList<>();
         for (Course course : courses) {
             Integer studentCount = courseStudentMapper.countByCourseId(course.getCourseId());
+            List<String> classes = studentMapper.findAdminClassesByCourseId(course.getCourseId());
             result.add(CourseVO.builder()
                     .courseId(course.getCourseId())
                     .courseName(course.getCourseName())
                     .semester(course.getSemester())
                     .description(course.getDescription())
                     .studentCount(studentCount != null ? studentCount : 0)
-                    .createTime(course.getCreateTime())
+                    .classes(classes)
+                    .attendanceRate(100.0)
                     .build());
         }
 
@@ -131,6 +133,7 @@ public class CourseServiceImpl implements CourseService {
         }
 
         Integer studentCount = courseStudentMapper.countByCourseId(courseId);
+        List<String> classes = studentMapper.findAdminClassesByCourseId(courseId);
 
         return CourseVO.builder()
                 .courseId(course.getCourseId())
@@ -138,7 +141,7 @@ public class CourseServiceImpl implements CourseService {
                 .semester(course.getSemester())
                 .description(course.getDescription())
                 .studentCount(studentCount != null ? studentCount : 0)
-                .createTime(course.getCreateTime())
+                .classes(classes)
                 .build();
     }
 

@@ -58,3 +58,21 @@ export interface AttendanceRecordVO {
   status: number
   createTime: string
 }
+
+// 课程对应 DTO
+export interface CourseDTO {
+  courseId?: number
+  courseName: string
+  semester: string
+  description?: string
+}
+
+export interface CourseVO {
+  courseId: number
+  courseName: string
+  semester: string
+  description: string
+  studentCount: number
+  classes?: string[]
+  attendanceRate?: number
+}

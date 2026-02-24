@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, reactive } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { 
   Menu as IconMenu, 
   User, 
@@ -16,13 +16,11 @@ import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
 import { updateTeacherProfile } from '@/api/teacher'
 
-const isCollapse = ref(false)
+const isCollapse = ref(true)
 const route = useRoute()
-const router = useRouter()
 const authStore = useAuthStore()
 
 // User Info
-const isTeacher = computed(() => authStore.isTeacher)
 const userName = computed(() => authStore.userInfo.realName || authStore.userInfo.username || '用户')
 const userInitial = computed(() => userName.value ? userName.value.charAt(0) : 'U')
 
@@ -34,11 +32,7 @@ const handleCommand = (command: string) => {
   if (command === 'logout') {
     authStore.logout()
   } else if (command === 'profile') {
-    if (authStore.isTeacher) {
-      openProfileDialog()
-    } else {
-      router.push('/student/profile')
-    }
+    openProfileDialog()
   }
 }
 
@@ -129,24 +123,18 @@ const activeMenu = computed(() => route.path)
         router
       >
         <!-- Teacher Menus -->
-        <template v-if="isTeacher">
-          <el-menu-item index="/teacher/dashboard">
-            <el-icon><Monitor /></el-icon>
-            <template #title>工作台</template>
-          </el-menu-item>
-          <el-menu-item index="/teacher/course">
-            <el-icon><IconMenu /></el-icon>
-            <template #title>课程管理</template>
-          </el-menu-item>
-        </template>
-
-        <!-- Student Menus -->
-        <template v-if="!isTeacher">
-          <el-menu-item index="/student/profile">
-            <el-icon><User /></el-icon>
-            <template #title>个人中心</template>
-          </el-menu-item>
-        </template>
+        <el-menu-item index="/teacher/dashboard">
+          <el-icon><Monitor /></el-icon>
+          <template #title>工作台</template>
+        </el-menu-item>
+        <el-menu-item index="/teacher/course">
+          <el-icon><IconMenu /></el-icon>
+          <template #title>课程管理</template>
+        </el-menu-item>
+        <el-menu-item index="/teacher/student">
+          <el-icon><User /></el-icon>
+          <template #title>学生管理</template>
+        </el-menu-item>
       </el-menu>
     </aside>
 
@@ -181,7 +169,7 @@ const activeMenu = computed(() => route.path)
                 <!-- User Info Header -->
                 <div class="px-4 py-3 border-b border-gray-100 mb-1">
                   <p class="text-sm font-bold text-gray-900 truncate">{{ userName }}</p>
-                  <p class="text-xs text-gray-500 mt-1">{{ isTeacher ? '教师' : '学生' }}</p>
+                  <p class="text-xs text-gray-500 mt-1">教师</p>
                 </div>
                 
                 <el-dropdown-item command="profile">

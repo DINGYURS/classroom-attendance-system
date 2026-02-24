@@ -26,6 +26,15 @@
         </foreach>
     </select>
 
+    <select id="findAdminClassesByCourseId" resultType="java.lang.String">
+        SELECT DISTINCT s.admin_class
+        FROM student s
+        INNER JOIN course_student cs ON cs.student_id = s.user_id
+        WHERE cs.course_id = #{courseId}
+          AND s.admin_class IS NOT NULL
+        ORDER BY s.admin_class
+    </select>
+
     <insert id="insert">
         INSERT INTO student (user_id, student_number, admin_class, gender, avatar_url, feature_vector)
         VALUES (#{userId}, #{studentNumber}, #{adminClass}, #{gender}, #{avatarUrl}, #{featureVector})

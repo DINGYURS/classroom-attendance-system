@@ -41,5 +41,13 @@ public interface StudentMapper {
      * 根据用户 ID 列表查询学生信息
      */
     List<Student> findByUserIds(@Param("userIds") List<Long> userIds);
+
+    /**
+     * 查询某课程所有学生来源的不重复行政班级列表
+     *
+     * @param courseId 课程 ID
+     * @return 行政班级列表
+     */
+    List<String> findAdminClassesByCourseId(@Param("courseId") Long courseId);
 }
 

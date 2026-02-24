@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import AppLayout from '../components/layout/AppLayout.vue'
+import TeacherLayout from '../components/layout/TeacherLayout.vue'
 import StudentLayout from '../components/layout/StudentLayout.vue'
 import Login from '../views/auth/Login.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -19,7 +19,7 @@ const router = createRouter({
     },
     {
       path: '/teacher',
-      component: AppLayout,
+      component: TeacherLayout,
       redirect: '/teacher/dashboard',
       meta: { title: '教师端' },
       children: [
@@ -32,8 +32,14 @@ const router = createRouter({
         {
           path: 'course',
           name: 'teacher-course',
-          component: () => import('../views/teacher/Dashboard.vue'), // 复用演示
+          component: () => import('../views/teacher/CourseManage.vue'),
           meta: { title: '课程管理' }
+        },
+        {
+          path: 'student',
+          name: 'teacher-student',
+          component: () => import('../views/teacher/StudentManage.vue'),
+          meta: { title: '学生管理' }
         },
         {
           path: 'rollcall/:id',

@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 课程信息 VO
@@ -34,6 +34,9 @@ public class CourseVO implements Serializable {
     @Schema(description = "学生人数")
     private Integer studentCount;
 
-    @Schema(description = "创建时间")
-    private LocalDateTime createTime;
+    @Schema(description = "班级列表（课程涉及的所有行政班级）")
+    private List<String> classes;
+
+    @Schema(description = "最近出勤率（百分比，如 95.0 表示 95%）")
+    private Double attendanceRate;
 }
