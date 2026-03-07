@@ -25,6 +25,37 @@
         SELECT COUNT(*) FROM course_student WHERE course_id = #{courseId}
     </select>
 
+    <select id="pageTeacherStudents" resultType="com.project.backend.pojo.vo.TeacherStudentTableVO">
+        SELECT
+            cs.id AS id,
+            c.course_id AS courseId,
+            s.user_id AS userId,
+            c.course_name AS courseName,
+            c.semester AS semester,
+            s.student_number AS studentId,
+            u.real_name AS realName,
+            CASE
+                WHEN s.gender = 1 THEN '男'
+                WHEN s.gender = 2 THEN '女'
+                ELSE '未知'
+            END AS gender,
+            IFNULL(s.admin_class, '') AS className
+        FROM course_student cs
+        INNER JOIN course c ON cs.course_id = c.course_id
+        INNER JOIN student s ON cs.student_id = s.user_id
+        INNER JOIN user u ON s.user_id = u.user_id
+        WHERE c.teacher_id = #{teacherId}
+        <if test="keyword != null and keyword != ''">
+            AND (
+                c.course_name LIKE CONCAT('%', #{keyword}, '%')
+                OR s.student_number LIKE CONCAT('%', #{keyword}, '%')
+                OR u.real_name LIKE CONCAT('%', #{keyword}, '%')
+                OR s.admin_class LIKE CONCAT('%', #{keyword}, '%')
+            )
+        </if>
+        ORDER BY c.create_time DESC, c.course_id DESC, s.student_number ASC
+    </select>
+
     <insert id="batchInsert">
         INSERT INTO course_student (course_id, student_id, join_time)
         VALUES

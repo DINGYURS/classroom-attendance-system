@@ -76,3 +76,26 @@ export interface CourseVO {
   classes?: string[]
   attendanceRate?: number
 }
+
+export interface PageResult<T> {
+  total: number
+  records: T[]
+}
+
+export interface TeacherStudentPageQuery {
+  keyword?: string
+  currentPage?: number
+  pageSize?: number
+}
+
+export interface TeacherStudentTableVO {
+  id: number
+  courseId: number
+  userId: number
+  courseName: string
+  semester: string
+  studentId: string
+  realName: string
+  gender: string
+  className: string
+}

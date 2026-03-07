@@ -289,7 +289,7 @@ const handleRegister = async () => {
             <el-button 
               type="primary" 
               size="large" 
-              class="w-full !rounded-lg !text-base !font-medium !h-11 shadow-lg shadow-blue-500/20" 
+              class="w-full rounded-lg! text-base! font-medium! h-11! shadow-lg shadow-blue-500/20" 
               :loading="isLoading"
               @click="isRegister ? handleRegister() : handleLogin()"
             >

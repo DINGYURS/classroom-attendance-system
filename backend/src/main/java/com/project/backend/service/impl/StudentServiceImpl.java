@@ -1,16 +1,27 @@
 package com.project.backend.service.impl;
 
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import com.project.backend.constant.MessageConstants;
+import com.project.backend.constant.RoleConstants;
 import com.project.backend.context.BaseContext;
 import com.project.backend.exception.BusinessException;
-import com.project.backend.mapper.*;
+import com.project.backend.mapper.AttendanceRecordMapper;
+import com.project.backend.mapper.AttendanceSessionMapper;
+import com.project.backend.mapper.CourseMapper;
+import com.project.backend.mapper.CourseStudentMapper;
+import com.project.backend.mapper.StudentMapper;
+import com.project.backend.mapper.UserMapper;
 import com.project.backend.pojo.dto.FaceFeatureDTO;
+import com.project.backend.pojo.dto.TeacherStudentPageQueryDTO;
 import com.project.backend.pojo.entity.AttendanceRecord;
 import com.project.backend.pojo.entity.AttendanceSession;
 import com.project.backend.pojo.entity.Student;
 import com.project.backend.pojo.entity.User;
+import com.project.backend.pojo.result.PageResult;
 import com.project.backend.pojo.vo.AttendanceRecordVO;
 import com.project.backend.pojo.vo.StudentVO;
+import com.project.backend.pojo.vo.TeacherStudentTableVO;
 import com.project.backend.service.MinioService;
 import com.project.backend.service.PythonServiceClient;
 import com.project.backend.service.StudentService;
@@ -24,7 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 学生服务实现类
+ * 学生相关服务实现。
  */
 @Slf4j
 @Service
@@ -35,6 +46,9 @@ public class StudentServiceImpl implements StudentService {
 
     @Autowired
     private StudentMapper studentMapper;
+
+    @Autowired
+    private CourseStudentMapper courseStudentMapper;
 
     @Autowired
     private AttendanceRecordMapper attendanceRecordMapper;
@@ -79,8 +93,6 @@ public class StudentServiceImpl implements StudentService {
     @Override
     public void uploadFaceFeature(FaceFeatureDTO faceFeatureDTO) {
         Long userId = BaseContext.getCurrentId();
-
-        // AES 加密存储
         String encryptedFeature = AesUtils.encrypt(faceFeatureDTO.getFeatureVector());
         studentMapper.updateFeatureVector(userId, encryptedFeature);
 
@@ -91,29 +103,21 @@ public class StudentServiceImpl implements StudentService {
     public void registerFaceByImage(MultipartFile file) {
         Long userId = BaseContext.getCurrentId();
 
-        // 1. 上传图片到 MinIO，返回对象路径 (objectKey)
         String objectKey = minioService.uploadFile(file, "faces");
-        log.info("学生 {} 人脸图片上传成功: {}", userId, objectKey);
+        log.info("学生 {} 上传人脸图片成功: {}", userId, objectKey);
 
-        // 2. 生成预签名 URL，供 Python 服务访问
         String imageUrl = minioService.getFileUrl(objectKey);
-
-        // 3. 调用 Python 服务提取人脸特征
         String featureVector = pythonServiceClient.extractFaceFeature(imageUrl);
         if (featureVector == null || featureVector.isEmpty()) {
-            // 特征提取失败，删除已上传的图片，避免垃圾数据
             minioService.deleteFile(objectKey);
             throw new BusinessException("人脸特征提取失败，请确保图片中有清晰的人脸");
         }
 
-        // 4. AES 加密特征向量并存库
         String encryptedFeature = AesUtils.encrypt(featureVector);
         studentMapper.updateFeatureVector(userId, encryptedFeature);
-
-        // 5. 保存 objectKey 到 student 表
         studentMapper.updateFaceImageKey(userId, objectKey);
 
-        log.info("学生 {} 人脸登记成功", userId);
+        log.info("学生 {} 完成人脸注册", userId);
     }
 
     @Override
@@ -145,11 +149,48 @@ public class StudentServiceImpl implements StudentService {
         return result;
     }
 
+    @Override
+    public PageResult<TeacherStudentTableVO> getTeacherStudentPage(TeacherStudentPageQueryDTO queryDTO) {
+        Long teacherId = BaseContext.getCurrentId();
+        User currentUser = userMapper.findById(teacherId);
+        if (currentUser == null) {
+            throw new BusinessException(MessageConstants.USER_NOT_FOUND);
+        }
+        if (!RoleConstants.ROLE_TEACHER.equals(currentUser.getRole())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+
+        int currentPage = queryDTO.getCurrentPage() == null || queryDTO.getCurrentPage() < 1 ? 1 : queryDTO.getCurrentPage();
+        int pageSize = queryDTO.getPageSize() == null || queryDTO.getPageSize() < 1 ? 10 : Math.min(queryDTO.getPageSize(), 100);
+        String keyword = normalizeKeyword(queryDTO.getKeyword());
+
+        Page<TeacherStudentTableVO> page = PageHelper.startPage(currentPage, pageSize);
+        List<TeacherStudentTableVO> records = courseStudentMapper.pageTeacherStudents(teacherId, keyword);
+
+        return PageResult.<TeacherStudentTableVO>builder()
+                .total(page.getTotal())
+                .records(records)
+                .build();
+    }
+
     /**
-     * 获取状态文字
+     * 规范化关键字，空白字符串按 null 处理。
+     */
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String trimmed = keyword.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * 转换考勤状态文本。
      */
     private String getStatusText(Integer status) {
-        if (status == null) return "未知";
+        if (status == null) {
+            return "未知";
+        }
         return switch (status) {
             case 0 -> "缺勤";
             case 1 -> "已到";
@@ -159,4 +200,3 @@ public class StudentServiceImpl implements StudentService {
         };
     }
 }
-

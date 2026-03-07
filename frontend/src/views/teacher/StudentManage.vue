@@ -1,52 +1,52 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { Search, Upload, Download, View, User, DataLine, Ticket, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { getTeacherStudentPage } from '@/api/teacher'
+import type { TeacherStudentTableVO } from '@/types/api'
 
-// --- Mock Data ---
-const tableData = ref([
-  {
-    id: 1,
-    courseName: '高级软件工程',
-    semester: '2025-2026-1',
-    studentId: '2022030101',
-    realName: '张三',
-    gender: '男',
-    className: '计科225'
-  },
-  {
-    id: 2,
-    courseName: '高级软件工程',
-    semester: '2025-2026-1',
-    studentId: '2022030102',
-    realName: '李四',
-    gender: '女',
-    className: '计科225'
-  },
-  {
-    id: 3,
-    courseName: '高级软件工程',
-    semester: '2025-2026-1',
-    studentId: '2022030215',
-    realName: '王五',
-    gender: '男',
-    className: '软工221'
-  }
-])
+const loading = ref(false)
+const tableData = ref<TeacherStudentTableVO[]>([])
 
 // Pagination & Search
 const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
-const total = ref(185)
+const total = ref(0)
 
-const handleSearch = () => {
-  ElMessage.success('搜索模拟成功: ' + searchQuery.value)
+const fetchTableData = async () => {
+  loading.value = true
+  try {
+    const res = await getTeacherStudentPage({
+      keyword: searchQuery.value.trim() || undefined,
+      currentPage: currentPage.value,
+      pageSize: pageSize.value
+    })
+    tableData.value = res.data.records || []
+    total.value = res.data.total || 0
+  } finally {
+    loading.value = false
+  }
 }
 
-const handleReset = () => {
+const handleSearch = async () => {
+  currentPage.value = 1
+  await fetchTableData()
+}
+
+const handleReset = async () => {
   searchQuery.value = ''
-  ElMessage.success('重置搜索条件')
+  currentPage.value = 1
+  await fetchTableData()
+}
+
+const handlePageChange = () => {
+  fetchTableData()
+}
+
+const handleSizeChange = () => {
+  currentPage.value = 1
+  fetchTableData()
 }
 
 // --- Import/Export ---
@@ -63,7 +63,6 @@ const handleFileChange = (e: Event) => {
     if (file) {
       ElMessage.success(`模拟成功导入文件: ${file.name}`)
     }
-    // Reset
     target.value = ''
   }
 }
@@ -72,20 +71,18 @@ const handleFileChange = (e: Event) => {
 const detailDialogVisible = ref(false)
 const currentStudent = ref<any>({})
 
-// Mock Attendance Data for the detailed view
 const attendanceRecords = ref([
   { date: '2025-09-22 10:00:00', status: 'present', statusText: '正常出勤', reason: '' },
   { date: '2025-09-15 10:00:00', status: 'absent', statusText: '缺勤', reason: '未在此课堂签到' },
   { date: '2025-09-08 10:00:00', status: 'leave', statusText: '请假', reason: '病假，已向辅导员报备' },
-  { date: '2025-09-01 10:00:00', status: 'present', statusText: '正常出勤', reason: '' },
+  { date: '2025-09-01 10:00:00', status: 'present', statusText: '正常出勤', reason: '' }
 ])
 
-const viewDetails = (row: any) => {
+const viewDetails = (row: TeacherStudentTableVO) => {
   currentStudent.value = { ...row }
   detailDialogVisible.value = true
 }
 
-// Generate tag type based on status
 const getStatusType = (status: string) => {
   switch (status) {
     case 'present': return 'success'
@@ -95,6 +92,10 @@ const getStatusType = (status: string) => {
     default: return ''
   }
 }
+
+onMounted(() => {
+  fetchTableData()
+})
 </script>
 
 <template>
@@ -102,7 +103,7 @@ const getStatusType = (status: string) => {
     <!-- Header -->
     <div class="mb-5">
       <h1 class="text-2xl font-bold text-gray-900">学生管理</h1>
-      <p class="text-gray-500 mt-1">查看和管理您所教授的课程中的学生名单及其考勤情况。</p>
+      <p class="text-gray-500 mt-1">查看和管理您所教授的课程中的学生名单及其考勤情况</p>
     </div>
 
     <!-- Quick Stats Cards -->
@@ -179,6 +180,7 @@ const getStatusType = (status: string) => {
     <!-- Desktop Data Table -->
     <div class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden flex flex-col min-h-0">
       <el-table 
+        v-loading="loading"
         :data="tableData" 
         style="width: 100%"
         :header-cell-style="{ background: '#f8fafc', color: '#475569', fontWeight: '600' }"
@@ -227,6 +229,8 @@ const getStatusType = (status: string) => {
           background
           layout="sizes, prev, pager, next, jumper"
           :total="total"
+          @current-change="handlePageChange"
+          @size-change="handleSizeChange"
         />
       </div>
     </div>
@@ -264,7 +268,7 @@ const getStatusType = (status: string) => {
             <el-descriptions-item label="所属课程">{{ currentStudent.courseName }}</el-descriptions-item>
             <el-descriptions-item label="开课学期">{{ currentStudent.semester }}</el-descriptions-item>
             <el-descriptions-item label="全勤率">
-              <span class="text-green-600 font-bold">75%</span> (3 / 4 次)
+              <span class="text-green-600 font-bold">75%</span> (3 / 4 人)
             </el-descriptions-item>
           </el-descriptions>
         </div>
@@ -288,7 +292,7 @@ const getStatusType = (status: string) => {
                 <el-card shadow="hover" class="my-0! border-gray-100" body-class="p-3">
                   <div class="flex justify-between items-start gap-4">
                     <div class="flex flex-col gap-1">
-                      <span class="text-sm font-bold text-gray-700">第 {{ 4 - index }} 次点名</span>
+                      <span class="text-sm font-bold text-gray-700">{{ 4 - index }} 次点名</span>
                       <span v-if="record.reason" class="text-xs text-gray-500 line-clamp-2">
                         备注：{{ record.reason }}
                       </span>
@@ -330,3 +334,9 @@ export default {
   left: -2px;
 }
 </style>
+
+
+
+
+
+

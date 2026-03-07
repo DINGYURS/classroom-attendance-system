@@ -178,7 +178,7 @@ const getStatusText = (status: string) => {
           :class="{'border-rose-300 bg-rose-50/30': student.status === 'absent'}"
         >
           <div class="p-4 flex items-center gap-3">
-             <el-avatar :size="48" :src="student.avatar" class="flex-shrink-0 bg-gray-200">
+             <el-avatar :size="48" :src="student.avatar" class="shrink-0 bg-gray-200">
                {{ student.name.charAt(0) }}
              </el-avatar>
              <div class="min-w-0 flex-1">
