@@ -1,7 +1,7 @@
 package com.project.backend.service;
 
-import com.project.backend.pojo.dto.StudentImportDTO;
 import com.project.backend.pojo.vo.AttendanceExportVO;
+import com.project.backend.pojo.vo.TeacherStudentExportVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -12,13 +12,20 @@ import java.util.List;
 public interface ExcelService {
 
     /**
-     * 批量导入学生到课程
+     * 按照模板批量导入教师名下课程的学生名单
      *
-     * @param courseId 课程 ID
-     * @param file     Excel 文件
+     * @param file Excel 文件
      * @return 导入结果信息
      */
-    String importStudents(Long courseId, MultipartFile file);
+    String importStudents(MultipartFile file);
+
+    /**
+     * 导出教师端学生名单
+     *
+     * @param keyword 搜索关键词
+     * @return 学生名单数据
+     */
+    List<TeacherStudentExportVO> exportTeacherStudentList(String keyword);
 
     /**
      * 导出课程考勤报表

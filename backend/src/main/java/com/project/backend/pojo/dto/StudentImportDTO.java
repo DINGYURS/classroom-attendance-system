@@ -1,5 +1,6 @@
 package com.project.backend.pojo.dto;
 
+import com.alibaba.excel.annotation.ExcelIgnoreUnannotated;
 import com.alibaba.excel.annotation.ExcelProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -7,26 +8,30 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 学生导入 Excel 数据对象
+ * 学生名单导入模板对应的数据对象
  */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@ExcelIgnoreUnannotated
 public class StudentImportDTO {
 
-    @ExcelProperty("学号")
+    @ExcelProperty(index = 0)
+    private String courseName;
+
+    @ExcelProperty(index = 1)
+    private String semester;
+
+    @ExcelProperty(index = 2)
     private String studentNumber;
 
-    @ExcelProperty("姓名")
+    @ExcelProperty(index = 3)
     private String realName;
 
-    @ExcelProperty("行政班级")
-    private String adminClass;
-
-    @ExcelProperty("性别")
+    @ExcelProperty(index = 4)
     private String gender;
 
-    @ExcelProperty("初始密码")
-    private String password;
+    @ExcelProperty(index = 5)
+    private String adminClass;
 }
