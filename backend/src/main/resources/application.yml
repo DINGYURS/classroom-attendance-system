@@ -6,6 +6,10 @@ spring:
     active: dev
   main:
     allow-circular-references: true
+  servlet:
+    multipart:
+      max-file-size: 12MB
+      max-request-size: 12MB
   datasource:
     driver-class-name: ${rollcallsystem.datasource.driver-class-name}
     url: jdbc:mysql://${rollcallsystem.datasource.host}:${rollcallsystem.datasource.port}/${rollcallsystem.datasource.database}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
@@ -15,7 +19,7 @@ spring:
   #   host: ${sky.redis.host}
   #   port: ${sky.redis.port}
   #   database: ${sky.redis.database}
-  #   timeout: 5000             # Redis 的连接超时时间，单位毫秒
+  #   timeout: 5000             # Redis 鐨勮繛鎺ヨ秴鏃舵椂闂达紝鍗曚綅姣
 
 springdoc:
   api-docs:
@@ -26,7 +30,7 @@ springdoc:
     tags-sorter: alpha
     operations-sorter: alpha
   group-configs:
-    - group: '全部接口'
+    - group: '鍏ㄩ儴鎺ュ彛'
       paths-to-match: '/**'
       packages-to-scan: com.project.backend.controller
 
@@ -36,11 +40,11 @@ knife4j:
     language: zh_cn
 
 mybatis:
-  #mapper配置文件
+  #mapper閰嶇疆鏂囦欢
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.project.backend.pojo.entity
   configuration:
-    #开启驼峰命名
+    #寮€鍚┘宄板懡鍚?
     map-underscore-to-camel-case: true
 
 logging:
@@ -53,11 +57,11 @@ logging:
 
 rollcallsystem:
   jwt:
-    # 设置jwt签名加密时使用的秘钥
+    # 璁剧疆jwt绛惧悕鍔犲瘑鏃朵娇鐢ㄧ殑绉橀挜
     admin-secret-key: RollCallSystemJasminum-2026-2-10
-    # 设置jwt过期时间
+    # 璁剧疆jwt杩囨湡鏃堕棿
     admin-ttl: 86400000
-    # 设置前端传递过来的令牌名称
+    # 璁剧疆鍓嶇浼犻€掕繃鏉ョ殑浠ょ墝鍚嶇О
     admin-token-name: token
   minio:
     endpoint: ${rollcallsystem.minio.endpoint}
@@ -65,5 +69,5 @@ rollcallsystem:
     secret-key: ${rollcallsystem.minio.secret-key}
     bucket-name: ${rollcallsystem.minio.bucket-name}
   python-service:
-    # Python 算法服务地址
+    # Python 绠楁硶鏈嶅姟鍦板潃
     base-url: ${rollcallsystem.python-service.url}

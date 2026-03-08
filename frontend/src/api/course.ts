@@ -11,6 +11,11 @@ export function getMyCourses() {
   return request.get<any, Result<CourseVO[]>>('/course/list')
 }
 
+// 获取课程详情
+export function getCourseDetail(courseId: number) {
+  return request.get<any, Result<CourseVO>>(`/course/${courseId}`)
+}
+
 // 更新课程信息
 export function updateCourse(data: CourseDTO) {
   return request.put<any, Result<any>>('/course', data)

@@ -15,7 +15,7 @@ export interface UserLoginVO {
   userId: number
   username: string
   realName: string
-  role: number // 1-Teacher, 2-Student
+  role: number
   avatarUrl: string
   token: string
   adminClass?: string
@@ -26,9 +26,9 @@ export interface UserRegisterDTO {
   username?: string
   password?: string
   realName?: string
-  role?: number // 1-Teacher, 2-Student
+  role?: number
   adminClass?: string
-  gender?: number // 1-Male, 2-Female
+  gender?: number
 }
 
 // 教师信息修改
@@ -40,9 +40,9 @@ export interface TeacherUpdateDTO {
 
 // 学生信息修改
 export interface StudentUpdateDTO {
-  username?: string // 学号
-  password?: string // 新密码
-  realName?: string // 姓名
+  username?: string
+  password?: string
+  realName?: string
 }
 
 export interface StudentVO {
@@ -59,7 +59,52 @@ export interface AttendanceRecordVO {
   createTime: string
 }
 
-// 课程对应 DTO
+export interface AttendanceStartDTO {
+  courseId: number
+  lateThreshold?: number
+}
+
+export interface FaceRecognitionDTO {
+  sessionId: number
+  imageKeys: string[]
+}
+
+export interface AttendanceUpdateDTO {
+  recordId: number
+  status: number
+}
+
+export interface AttendanceSessionVO {
+  sessionId: number
+  courseId: number
+  courseName: string
+  startTime?: string
+  endTime?: string
+  status?: number
+  presentCount: number
+  totalCount: number
+}
+
+export interface RecognitionResultVO {
+  studentId?: number
+  studentNumber?: string
+  realName?: string
+  similarity: number
+  matched: boolean
+  status?: number
+}
+
+export interface SessionRecordVO {
+  recordId: number
+  studentId: number
+  studentNumber: string
+  realName: string
+  status: number
+  statusText: string
+  similarityScore?: number | string
+}
+
+// 课程 DTO
 export interface CourseDTO {
   courseId?: number
   courseName: string

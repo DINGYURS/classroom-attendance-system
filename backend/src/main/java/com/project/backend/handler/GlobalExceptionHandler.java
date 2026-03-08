@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -18,7 +19,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 public class GlobalExceptionHandler {
 
     /**
-     * 处理静态资源未找到异常（如 favicon.ico）
+     * 处理静态资源未找到异常。
      */
     @ExceptionHandler(NoResourceFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
@@ -28,7 +29,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理业务异常
+     * 处理上传文件过大异常。
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public Result<Object> handleMaxUploadSizeExceededException(MaxUploadSizeExceededException e) {
+        log.warn("上传文件超过限制: {}", e.getMessage());
+        return Result.error("上传文件过大，单张图片不能超过12MB");
+    }
+
+    /**
+     * 处理业务异常。
      */
     @ExceptionHandler(BusinessException.class)
     public Result<Object> handleBusinessException(BusinessException e) {
@@ -37,7 +47,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理基础异常
+     * 处理基础异常。
      */
     @ExceptionHandler(BaseException.class)
     public Result<Object> handleBaseException(BaseException e) {
@@ -46,7 +56,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理其他未知异常
+     * 处理其他未知异常。
      */
     @ExceptionHandler(Exception.class)
     public Result<Object> handleException(Exception e) {

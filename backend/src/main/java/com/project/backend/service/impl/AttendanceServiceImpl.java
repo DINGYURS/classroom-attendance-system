@@ -5,11 +5,20 @@ import com.project.backend.constant.AttendanceStatus;
 import com.project.backend.constant.MessageConstants;
 import com.project.backend.context.BaseContext;
 import com.project.backend.exception.BusinessException;
-import com.project.backend.mapper.*;
+import com.project.backend.mapper.AttendanceRecordMapper;
+import com.project.backend.mapper.AttendanceSessionMapper;
+import com.project.backend.mapper.CourseMapper;
+import com.project.backend.mapper.CourseStudentMapper;
+import com.project.backend.mapper.StudentMapper;
+import com.project.backend.mapper.UserMapper;
 import com.project.backend.pojo.dto.AttendanceStartDTO;
 import com.project.backend.pojo.dto.AttendanceUpdateDTO;
 import com.project.backend.pojo.dto.FaceRecognitionDTO;
-import com.project.backend.pojo.entity.*;
+import com.project.backend.pojo.entity.AttendanceRecord;
+import com.project.backend.pojo.entity.AttendanceSession;
+import com.project.backend.pojo.entity.Course;
+import com.project.backend.pojo.entity.Student;
+import com.project.backend.pojo.entity.User;
 import com.project.backend.pojo.vo.AttendanceSessionVO;
 import com.project.backend.pojo.vo.RecognitionResultVO;
 import com.project.backend.pojo.vo.SessionRecordVO;
@@ -25,8 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-// 该文件需重新编写
+import java.util.Set;
+
 /**
  * 考勤服务实现类
  */
@@ -34,7 +45,7 @@ import java.util.List;
 @Service
 public class AttendanceServiceImpl implements AttendanceService {
 
-    private static final double SIMILARITY_THRESHOLD = 0.6; // 相似度阈值
+    private static final double SIMILARITY_THRESHOLD = 0.6;
 
     @Autowired
     private AttendanceSessionMapper attendanceSessionMapper;
@@ -65,21 +76,25 @@ public class AttendanceServiceImpl implements AttendanceService {
     public Long startAttendance(AttendanceStartDTO startDTO) {
         Long teacherId = BaseContext.getCurrentId();
 
-        // 验证课程所有权
         Course course = courseMapper.findById(startDTO.getCourseId());
         if (course == null || !course.getTeacherId().equals(teacherId)) {
             throw new BusinessException(MessageConstants.NO_PERMISSION);
         }
 
-        // 创建考勤会话
+        List<Long> studentIds = courseStudentMapper.findStudentIdsByCourseId(startDTO.getCourseId());
+        if (studentIds == null) {
+            studentIds = new ArrayList<>();
+        }
+
         AttendanceSession session = AttendanceSession.builder()
                 .courseId(startDTO.getCourseId())
+                .sourceImages(JSON.toJSONString(new ArrayList<>()))
+                .totalStudent(studentIds.size())
+                .actualStudent(0)
                 .startTime(LocalDateTime.now())
                 .build();
         attendanceSessionMapper.insert(session);
 
-        // 为课程所有学生创建初始考勤记录（状态：缺勤）
-        List<Long> studentIds = courseStudentMapper.findStudentIdsByCourseId(startDTO.getCourseId());
         if (!studentIds.isEmpty()) {
             List<AttendanceRecord> records = new ArrayList<>();
             for (Long studentId : studentIds) {
@@ -92,21 +107,23 @@ public class AttendanceServiceImpl implements AttendanceService {
             attendanceRecordMapper.batchInsert(records);
         }
 
-        log.info("点名开始: 会话ID={}, 课程ID={}, 学生数={}", session.getSessionId(), startDTO.getCourseId(), studentIds.size());
+        log.info("点名开始: sessionId={}, courseId={}, studentCount={}",
+                session.getSessionId(), startDTO.getCourseId(), studentIds.size());
         return session.getSessionId();
     }
 
     @Override
     public void endAttendance(Long sessionId) {
         AttendanceSession session = attendanceSessionMapper.findById(sessionId);
-
         if (session == null) {
-            throw new BusinessException(MessageConstants.NO_PERMISSION);
+            throw new BusinessException("考勤会话不存在");
         }
 
+        List<AttendanceRecord> records = attendanceRecordMapper.findBySessionId(sessionId);
+        session.setActualStudent(countActualStudents(records));
         attendanceSessionMapper.update(session);
 
-        log.info("点名结束: 会话ID={}", sessionId);
+        log.info("点名结束: sessionId={}", sessionId);
     }
 
     @Override
@@ -114,30 +131,30 @@ public class AttendanceServiceImpl implements AttendanceService {
     public List<RecognitionResultVO> recognizeFaces(FaceRecognitionDTO recognitionDTO) {
         AttendanceSession session = attendanceSessionMapper.findById(recognitionDTO.getSessionId());
         if (session == null) {
-            throw new BusinessException("考勤会话不存在或已结束");
+            throw new BusinessException("考勤会话不存在");
         }
         if (recognitionDTO.getImageKeys() == null || recognitionDTO.getImageKeys().isEmpty()) {
             throw new BusinessException("未提供合照图片");
         }
 
-        // 1. 将合照 objectKey 转换为预签名 URL，供 Python 下载
         List<String> imageUrls = new ArrayList<>();
         for (String key : recognitionDTO.getImageKeys()) {
             imageUrls.add(minioService.getFileUrl(key));
         }
 
-        // 2. 调用 Python /detect，返回合照中所有检测到的人脸 embedding 列表
         List<List<Double>> detectedEmbeddings = pythonServiceClient.detectFaces(imageUrls);
         log.info("合照检测到人脸数: {}", detectedEmbeddings.size());
 
-        // 3. 从数据库读取该课程所有学生并解密特征向量
         List<Long> studentIds = courseStudentMapper.findStudentIdsByCourseId(session.getCourseId());
-        List<Student> students = studentMapper.findByUserIds(studentIds);
+        if (studentIds == null) {
+            studentIds = new ArrayList<>();
+        }
+        List<Student> students = studentIds.isEmpty()
+                ? new ArrayList<>()
+                : studentMapper.findByUserIds(studentIds);
 
-        // 4. 在 Java 内存中做余弦相似度比对（每张检测到的人脸 vs 全班学生）
         List<RecognitionResultVO> results = new ArrayList<>();
-        // 记录已匹配的学生，避免重复
-        java.util.Set<Long> matchedStudentIds = new java.util.HashSet<>();
+        Set<Long> matchedStudentIds = new HashSet<>();
 
         for (List<Double> detectedEmbedding : detectedEmbeddings) {
             double[] inputFeature = toDoubleArray(detectedEmbedding);
@@ -145,13 +162,15 @@ public class AttendanceServiceImpl implements AttendanceService {
             double bestSimilarity = 0;
 
             for (Student student : students) {
-                if (matchedStudentIds.contains(student.getUserId())) continue;
-                if (student.getFeatureVector() == null || student.getFeatureVector().isEmpty()) continue;
+                if (matchedStudentIds.contains(student.getUserId())) {
+                    continue;
+                }
+                if (student.getFeatureVector() == null || student.getFeatureVector().isEmpty()) {
+                    continue;
+                }
 
-                // AES 解密 → JSON 字符串 → double[]
                 String decryptedJson = AesUtils.decrypt(student.getFeatureVector());
                 double[] storedFeature = parseFeatureVector(decryptedJson);
-
                 double similarity = cosineSimilarity(inputFeature, storedFeature);
                 if (similarity > SIMILARITY_THRESHOLD && similarity > bestSimilarity) {
                     bestSimilarity = similarity;
@@ -168,28 +187,30 @@ public class AttendanceServiceImpl implements AttendanceService {
 
             if (bestMatch != null) {
                 matchedStudentIds.add(bestMatch.getStudentId());
+                bestMatch.setStatus(AttendanceStatus.PRESENT);
 
-                // 判断迟到（预留，当前统一标记为已到）
-                int status = AttendanceStatus.PRESENT;
-                bestMatch.setStatus(status);
-
-                // 5. 更新考勤记录
                 attendanceRecordMapper.updateStatus(
                         recognitionDTO.getSessionId(),
                         bestMatch.getStudentId(),
-                        status,
+                        AttendanceStatus.PRESENT,
                         BigDecimal.valueOf(bestMatch.getSimilarity())
                 );
                 results.add(bestMatch);
-            } else {
-                results.add(RecognitionResultVO.builder()
-                        .matched(false)
-                        .similarity(0.0)
-                        .build());
+                continue;
             }
+
+            results.add(RecognitionResultVO.builder()
+                    .matched(false)
+                    .similarity(0.0)
+                    .build());
         }
 
-        log.info("识别完成: 总人脸={}, 匹配成功={}", detectedEmbeddings.size(), matchedStudentIds.size());
+        session.setSourceImages(JSON.toJSONString(recognitionDTO.getImageKeys()));
+        session.setActualStudent(matchedStudentIds.size());
+        session.setTotalStudent(studentIds.size());
+        attendanceSessionMapper.update(session);
+
+        log.info("识别完成: totalFaces={}, matchedCount={}", detectedEmbeddings.size(), matchedStudentIds.size());
         return results;
     }
 
@@ -203,19 +224,12 @@ public class AttendanceServiceImpl implements AttendanceService {
         Course course = courseMapper.findById(session.getCourseId());
         List<AttendanceRecord> records = attendanceRecordMapper.findBySessionId(sessionId);
 
-        int presentCount = 0;
-        for (AttendanceRecord record : records) {
-            if (record.getStatus() != null && !record.getStatus().equals(AttendanceStatus.ABSENT)) {
-                presentCount++;
-            }
-        }
-
         return AttendanceSessionVO.builder()
                 .sessionId(session.getSessionId())
                 .courseId(session.getCourseId())
                 .courseName(course != null ? course.getCourseName() : "")
                 .startTime(session.getStartTime())
-                .presentCount(presentCount)
+                .presentCount(countActualStudents(records))
                 .totalCount(records.size())
                 .build();
     }
@@ -251,19 +265,12 @@ public class AttendanceServiceImpl implements AttendanceService {
         List<AttendanceSessionVO> result = new ArrayList<>();
         for (AttendanceSession session : sessions) {
             List<AttendanceRecord> records = attendanceRecordMapper.findBySessionId(session.getSessionId());
-            int presentCount = 0;
-            for (AttendanceRecord record : records) {
-                if (record.getStatus() != null && !record.getStatus().equals(AttendanceStatus.ABSENT)) {
-                    presentCount++;
-                }
-            }
-
             result.add(AttendanceSessionVO.builder()
                     .sessionId(session.getSessionId())
                     .courseId(session.getCourseId())
                     .courseName(course != null ? course.getCourseName() : "")
                     .startTime(session.getStartTime())
-                    .presentCount(presentCount)
+                    .presentCount(countActualStudents(records))
                     .totalCount(records.size())
                     .build());
         }
@@ -280,6 +287,13 @@ public class AttendanceServiceImpl implements AttendanceService {
 
         record.setStatus(updateDTO.getStatus());
         attendanceRecordMapper.update(record);
+
+        AttendanceSession session = attendanceSessionMapper.findById(record.getSessionId());
+        if (session != null) {
+            List<AttendanceRecord> sessionRecords = attendanceRecordMapper.findBySessionId(record.getSessionId());
+            session.setActualStudent(countActualStudents(sessionRecords));
+            attendanceSessionMapper.update(session);
+        }
 
         log.info("考勤状态已更新: recordId={}, status={}", updateDTO.getRecordId(), updateDTO.getStatus());
     }
@@ -338,10 +352,27 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     /**
-     * 获取状态文字
+     * 统计实到人数。
+     */
+    private int countActualStudents(List<AttendanceRecord> records) {
+        int count = 0;
+        for (AttendanceRecord record : records) {
+            if (record.getStatus() != null
+                    && (record.getStatus().equals(AttendanceStatus.PRESENT)
+                    || record.getStatus().equals(AttendanceStatus.LATE))) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * 获取状态文本。
      */
     private String getStatusText(Integer status) {
-        if (status == null) return "未知";
+        if (status == null) {
+            return "未知";
+        }
         return switch (status) {
             case 0 -> "缺勤";
             case 1 -> "已到";

@@ -10,8 +10,6 @@ const router = useRouter()
 const authStore = useAuthStore()
 const videoRef = ref<HTMLVideoElement | null>(null)
 const canvasRef = ref<HTMLCanvasElement | null>(null)
-
-// Use shallowRef to avoid Vue proxy issues with MediaStream
 const stream = shallowRef<MediaStream | null>(null)
 
 const capturedImage = ref<string | null>(null)
@@ -19,50 +17,46 @@ const isCameraOpen = ref(false)
 const uploading = ref(false)
 const cameraError = ref<string | null>(null)
 
-// Start Camera
 const startCamera = async () => {
   cameraError.value = null
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    cameraError.value = '您的浏览器不支持摄像头访问，请使用 Chrome/Edge/Safari 并确保在 HTTPS 下运行。'
+    cameraError.value = '当前浏览器或运行环境不支持摄像头调用。'
     ElMessage.error(cameraError.value)
     return
   }
 
   try {
-    // Mobile optimization: prefer front camera ('user')
     const constraints = {
       video: {
-        facingMode: 'user', 
+        facingMode: 'user',
         width: { ideal: 1280 },
         height: { ideal: 720 }
       },
       audio: false
     }
-    
-    stream.value = await navigator.mediaDevices.getUserMedia(constraints)
 
-    await nextTick() 
+    stream.value = await navigator.mediaDevices.getUserMedia(constraints)
+    await nextTick()
 
     if (videoRef.value && stream.value) {
       videoRef.value.srcObject = stream.value
-      
       try {
         await videoRef.value.play()
         isCameraOpen.value = true
       } catch (playError) {
         console.error('Auto-play failed:', playError)
-        ElMessage.warning('视频未自动播放，请点按屏幕或检查设置')
+        ElMessage.warning('如果摄像头未自动启动，请点击预览区域后重试。')
       }
     }
   } catch (err: any) {
     console.error('Camera start error:', err)
-    let msg = '无法启动摄像头'
+    let msg = '打开摄像头失败。'
     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      msg = '访问被拒绝：请允许浏览器访问摄像头'
+      msg = '摄像头权限被拒绝。'
     } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-      msg = '未检测到摄像头设备'
+      msg = '未检测到可用摄像头设备。'
     } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-      msg = '摄像头可能正在被其他应用占用'
+      msg = '摄像头正被占用，暂时无法读取。'
     }
     cameraError.value = msg
     ElMessage.error(msg)
@@ -71,90 +65,94 @@ const startCamera = async () => {
 
 const stopCamera = () => {
   if (stream.value) {
-    stream.value.getTracks().forEach(track => track.stop())
+    stream.value.getTracks().forEach((track) => track.stop())
     stream.value = null
     isCameraOpen.value = false
   }
 }
 
 const capturePhoto = () => {
-  if (!videoRef.value || !canvasRef.value) return
-  
+  if (!videoRef.value || !canvasRef.value) {
+    return
+  }
+
   const video = videoRef.value
   const canvas = canvasRef.value
   const context = canvas.getContext('2d')
-  
+
   if (context) {
-    // Make target canvas be a square to match the circular mask perfectly if desired,
-    // or keep full frame. We keep full frame but center-cropped later when displayed.
-    // However, it's best to save the full 16:9 or 4:3 shot so recognition backend gets whole face.
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
-    
+
     context.save()
-    // Mirror the image horizontally to match user experience (like a mirror)
     context.scale(-1, 1)
     context.drawImage(video, -canvas.width, 0, canvas.width, canvas.height)
     context.restore()
-    
-    // High quality JPEG
-    capturedImage.value = canvas.toDataURL('image/jpeg', 0.95) 
+
+    capturedImage.value = canvas.toDataURL('image/jpeg', 0.95)
   }
 }
 
 const retakePhoto = () => {
   capturedImage.value = null
   if (!stream.value || !stream.value.active) {
-    startCamera()
+    void startCamera()
   }
 }
 
 const handleUpload = async () => {
-  if (!capturedImage.value) return
-  
-  // Create non-null assertion or cast for TS
-  const base64Data = capturedImage.value as string
-  const arr = base64Data.split(',')
+  if (!capturedImage.value) {
+    return
+  }
+
+  const arr = capturedImage.value.split(',')
   if (arr.length < 2) {
-      ElMessage.error('照片数据无效')
-      return;
+    ElMessage.error('照片数据无效')
+    return
   }
-  
-  const matchResult = arr[0].match(/:(.*?);/)
-  const mime = matchResult ? matchResult[1] : 'image/jpeg'
-  const bstr = atob(arr[1])
-  let n = bstr.length
-  
+
+  const header = arr[0] || ''
+  const payload = arr[1]
+  if (!payload) {
+    ElMessage.error('照片数据无效')
+    return
+  }
+
+  const matchResult = header.match(/:(.*?);/)
+  const mime = matchResult?.[1] || 'image/jpeg'
+  const binary = atob(payload)
+  let n = binary.length
   const u8arr = new Uint8Array(n)
+
   while (n--) {
-    u8arr[n] = bstr.charCodeAt(n)
+    u8arr[n] = binary.charCodeAt(n)
   }
+
   const file = new File([u8arr], 'mobile_face_register.jpg', { type: mime })
-  
   const formData = new FormData()
   formData.append('file', file)
-  
+
   const loading = ElLoading.service({
     lock: true,
     text: '正在上传人脸数据...',
     background: 'rgba(255, 255, 255, 0.8)',
-    customClass: 'modern-loading' 
+    customClass: 'modern-loading'
   })
-  
+
   try {
     uploading.value = true
     const res: any = await uploadFaceImage(formData)
-    
+
     if (res && res.code === 1) {
-      ElMessage.success('人脸录入成功！')
-      
+      ElMessage.success('人脸录入完成')
+
       const infoRes: any = await getStudentInfo()
       if (infoRes && infoRes.code === 1 && infoRes.data) {
-        authStore.updateUserInfo({ 
+        authStore.updateUserInfo({
           avatarUrl: infoRes.data.avatarUrl
         })
       }
-      
+
       setTimeout(() => router.replace('/student/profile'), 1000)
     } else {
       ElMessage.error(res?.message || '人脸录入失败')
@@ -169,7 +167,7 @@ const handleUpload = async () => {
 
 onMounted(() => {
   setTimeout(() => {
-    startCamera()
+    void startCamera()
   }, 300)
 })
 
@@ -179,140 +177,128 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-screen w-full bg-gray-50 flex flex-col items-center justify-between mx-auto overflow-hidden absolute inset-0 z-50">
-    <!-- Header Navigation -->
-    <header class="w-full h-14 md:h-16 bg-white flex items-center justify-between px-4 shadow-xs shrink-0 relative z-20">
-      <el-button link class="text-gray-600 hover:text-gray-900 px-2" @click="router.back()">
+  <div class="absolute inset-0 z-50 mx-auto flex h-screen w-full flex-col items-center justify-between overflow-hidden bg-gray-50">
+    <header class="relative z-20 flex h-14 w-full shrink-0 items-center justify-between bg-white px-4 shadow-xs md:h-16">
+      <el-button link class="px-2 text-gray-600 hover:text-gray-900" @click="router.back()">
         <el-icon :size="24"><ArrowLeft /></el-icon>
       </el-button>
-      <span class="text-gray-800 font-bold text-lg leading-none absolute left-1/2 -translate-x-1/2">
-        人脸信息采集
+      <span class="absolute left-1/2 -translate-x-1/2 text-lg font-bold leading-none text-gray-800">
+        人脸录入
       </span>
-      <div class="w-10"></div> <!-- Placeholder for centering -->
+      <div class="w-10"></div>
     </header>
 
-    <!-- Main Content / Camera Area -->
-    <main class="flex-1 w-full flex flex-col items-center justify-center relative px-6 md:px-0 mt-4 max-w-lg mb-4">
-      
-      <!-- Instructions Title -->
-      <div class="text-center mb-8 shrink-0">
-        <h2 class="text-xl font-bold text-gray-800 mb-2">
-          {{ capturedImage ? '确认人脸信息' : '请正对摄像头' }}
+    <main class="relative mb-4 mt-4 flex w-full max-w-lg flex-1 flex-col items-center justify-center px-6 md:px-0">
+      <div class="mb-8 shrink-0 text-center">
+        <h2 class="mb-2 text-xl font-bold text-gray-800">
+          {{ capturedImage ? '确认照片' : '请正对摄像头' }}
         </h2>
-        <p class="text-sm text-gray-500 max-w-[280px] mx-auto leading-relaxed">
-           {{ capturedImage ? '请确认照片清晰、面部完整' : '请将面部置于圆形取景框中，并保持光线充足' }}
+        <p class="mx-auto max-w-[280px] text-sm leading-relaxed text-gray-500">
+          {{ capturedImage ? '确认当前照片无误后上传，作为你的人脸底库。' : '请保持面部居中、光线充足，并确保五官清晰可见。' }}
         </p>
       </div>
 
-      <!-- Circular Camera Viewport -->
       <div class="relative flex-none transform transition-transform duration-300">
-        <!-- Error State Fallback -->
-        <div v-if="cameraError && !capturedImage" class="w-72 h-72 rounded-full border-4 border-dashed border-gray-300 bg-gray-100 flex flex-col items-center justify-center text-gray-400 p-8 text-center mx-auto shadow-inner">
-           <el-icon :size="48" class="text-gray-300 mb-3"><Warning /></el-icon>
-           <span class="text-sm">{{ cameraError }}</span>
-           <el-button type="primary" link class="mt-4" @click="startCamera">重试</el-button>
+        <div
+          v-if="cameraError && !capturedImage"
+          class="mx-auto flex h-72 w-72 flex-col items-center justify-center rounded-full border-4 border-dashed border-gray-300 bg-gray-100 p-8 text-center text-gray-400 shadow-inner"
+        >
+          <el-icon :size="48" class="mb-3 text-gray-300"><Warning /></el-icon>
+          <span class="text-sm">{{ cameraError }}</span>
+          <el-button type="primary" link class="mt-4" @click="startCamera">重试</el-button>
         </div>
 
-        <!-- Video & Masking -->
-        <div v-else class="camera-lens mx-auto w-72 h-72 md:w-80 md:h-80 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center relative shadow-lg ring-4 ring-white">
-          
-          <!-- Outer border glow effect (scanning) -->
-          <div v-if="!capturedImage && isCameraOpen" class="absolute inset-0 rounded-full border-2 border-blue-400 opacity-50 animate-pulse z-20 pointer-events-none"></div>
+        <div
+          v-else
+          class="camera-lens relative mx-auto flex h-72 w-72 items-center justify-center overflow-hidden rounded-full bg-gray-200 shadow-lg ring-4 ring-white md:h-80 md:w-80"
+        >
+          <div
+            v-if="!capturedImage && isCameraOpen"
+            class="pointer-events-none absolute inset-0 z-20 animate-pulse rounded-full border-2 border-blue-400 opacity-50"
+          ></div>
 
-          <!-- The Video Feed -->
           <video
             v-show="!capturedImage"
             ref="videoRef"
             autoplay
             playsinline
             muted
-            class="w-full h-full object-cover scale-x-[-1]"
+            class="h-full w-full scale-x-[-1] object-cover"
           ></video>
 
-          <!-- Captured Image Preview -->
           <img
             v-if="capturedImage"
             :src="capturedImage"
-            class="w-full h-full object-cover z-10"
+            class="z-10 h-full w-full object-cover"
           />
-          
-          <!-- Silhouette Guide Pattern overlay -->
-          <div v-if="!capturedImage && isCameraOpen" class="absolute z-10 inset-0 pointer-events-none flex items-center justify-center mix-blend-overlay opacity-30">
+
+          <div
+            v-if="!capturedImage && isCameraOpen"
+            class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center mix-blend-overlay opacity-30"
+          >
             <svg viewBox="0 0 200 200" width="80%" height="80%" fill="none">
-               <ellipse cx="100" cy="90" rx="60" ry="75" stroke="#ffffff" stroke-width="2" stroke-dasharray="6 6" />
-               <path d="M40 180 Q100 130 160 180" stroke="#ffffff" stroke-width="2" stroke-dasharray="6 6" />
+              <ellipse cx="100" cy="90" rx="60" ry="75" stroke="#ffffff" stroke-width="2" stroke-dasharray="6 6" />
+              <path d="M40 180 Q100 130 160 180" stroke="#ffffff" stroke-width="2" stroke-dasharray="6 6" />
             </svg>
           </div>
         </div>
-        
-        <!-- Subtle shadow under the lens -->
-        <div class="w-48 h-4 bg-black/5 blur-xl rounded-full absolute -bottom-6 left-1/2 -translate-x-1/2"></div>
-      </div>
 
+        <div class="absolute left-1/2 -bottom-6 h-4 w-48 -translate-x-1/2 rounded-full bg-black/5 blur-xl"></div>
+      </div>
     </main>
 
-    <!-- Bottom Controls Area -->
-    <footer class="w-full bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.04)] px-6 pt-6 pb-10 flex flex-col items-center justify-center shrink-0 max-w-lg mx-auto h-40 relative z-20">
-      
-      <!-- Capture Mode -->
+    <footer class="relative z-20 mx-auto flex h-40 w-full max-w-lg shrink-0 flex-col items-center justify-center rounded-t-3xl bg-white px-6 pt-6 pb-10 shadow-[0_-4px_20px_rgba(0,0,0,0.04)]">
       <template v-if="!capturedImage">
-        <button 
-          class="capture-btn relative flex items-center justify-center group" 
-          @click="capturePhoto" 
+        <button
+          class="capture-btn group relative flex items-center justify-center"
           :disabled="!isCameraOpen"
-          :class="{'opacity-50 cursor-not-allowed': !isCameraOpen}"
+          :class="{ 'cursor-not-allowed opacity-50': !isCameraOpen }"
+          @click="capturePhoto"
         >
-          <!-- Outer Ring -->
-          <div class="w-20 h-20 rounded-full border-[5px] border-blue-100 flex items-center justify-center transition-transform duration-200 group-active:scale-95">
-             <!-- Inner Button -->
-             <div class="w-[60px] h-[60px] rounded-full bg-blue-500 shadow-md flex items-center justify-center transition-all duration-200 group-hover:bg-blue-600"></div>
+          <div class="flex h-20 w-20 items-center justify-center rounded-full border-[5px] border-blue-100 transition-transform duration-200 group-active:scale-95">
+            <div class="h-[60px] w-[60px] rounded-full bg-blue-500 shadow-md transition-all duration-200 group-hover:bg-blue-600"></div>
           </div>
         </button>
-        <span class="text-xs text-gray-400 mt-4 font-medium tracking-wide text-center">点击按钮拍照</span>
+        <span class="mt-4 text-center text-xs font-medium tracking-wide text-gray-400">点击拍照</span>
       </template>
 
-      <!-- Review Mode -->
       <template v-else>
-        <div class="w-full flex items-center justify-around translate-y-2">
-          
-          <button class="flex flex-col items-center justify-center group outline-none" @click="retakePhoto">
-            <div class="w-14 h-14 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center mb-2 transition-all group-active:scale-90 group-hover:bg-gray-200">
-               <el-icon :size="22"><RefreshLeft /></el-icon>
+        <div class="translate-y-2 flex w-full items-center justify-around">
+          <button class="group flex flex-col items-center justify-center outline-none" @click="retakePhoto">
+            <div class="mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition-all group-active:scale-90 group-hover:bg-gray-200">
+              <el-icon :size="22"><RefreshLeft /></el-icon>
             </div>
-            <span class="text-sm font-medium text-gray-600">重拍照片</span>
+            <span class="text-sm font-medium text-gray-600">重新拍摄</span>
           </button>
-          
-          <button 
-            class="flex flex-col items-center justify-center group outline-none relative" 
-            @click="handleUpload" 
+
+          <button
+            class="group relative flex flex-col items-center justify-center outline-none"
             :disabled="uploading"
+            @click="handleUpload"
           >
-            <div class="w-[72px] h-[72px] rounded-full bg-blue-500 text-white flex items-center justify-center mb-2 transition-all shadow-lg shadow-blue-500/30 group-active:scale-90 group-hover:bg-blue-600" :class="{'opacity-80': uploading}">
-               <el-icon :size="28" v-if="!uploading"><Upload /></el-icon>
-               <span v-else class="upload-spinner border-t-2 border-white border-solid rounded-full w-6 h-6 animate-spin"></span>
+            <div class="mb-2 flex h-[72px] w-[72px] items-center justify-center rounded-full bg-blue-500 text-white shadow-lg shadow-blue-500/30 transition-all group-active:scale-90 group-hover:bg-blue-600" :class="{ 'opacity-80': uploading }">
+              <el-icon v-if="!uploading" :size="28"><Upload /></el-icon>
+              <span v-else class="upload-spinner h-6 w-6 animate-spin rounded-full border-t-2 border-white border-solid"></span>
             </div>
-            <span class="text-sm font-bold text-blue-600 absolute -bottom-6 whitespace-nowrap">
-              {{ uploading ? '正在上传...' : '确认使用本照片' }}
+            <span class="absolute -bottom-6 whitespace-nowrap text-sm font-bold text-blue-600">
+              {{ uploading ? '上传中...' : '确认上传' }}
             </span>
           </button>
-          
         </div>
       </template>
-
     </footer>
 
-    <!-- Hidden Canvas -->
     <canvas ref="canvasRef" class="hidden"></canvas>
   </div>
 </template>
 
 <style>
-/* Global fix applied specifically to the loading overlay inside this component context */
 .modern-loading .el-loading-spinner .path {
-  stroke: #3b82f6 !important; /* Blue-500 */
+  stroke: #3b82f6 !important;
 }
+
 .modern-loading .el-loading-text {
-  color: #1f2937 !important; /* Gray-800 */
+  color: #1f2937 !important;
   font-weight: 600;
   margin-top: 10px;
 }
