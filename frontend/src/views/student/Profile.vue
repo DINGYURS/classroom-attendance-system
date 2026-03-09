@@ -198,7 +198,7 @@ onMounted(() => {
           <div>
             <h3 class="font-bold text-gray-800 tracking-wide text-base">人脸底库</h3>
             <p class="text-xs mt-1" :class="studentInfo.faceRegistered ? 'text-emerald-600' : 'text-orange-500'">
-              {{ studentInfo.faceRegistered ? '已录入，点击可更新' : '未录入，点击立即拍摄' }}
+              {{ studentInfo.faceRegistered ? '已录入，点击可更新' : '未录入，点击立即录入' }}
             </p>
           </div>
         </div>

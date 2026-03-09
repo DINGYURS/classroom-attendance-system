@@ -362,7 +362,7 @@ onBeforeUnmount(() => {
 
     <div class="flex flex-col gap-4 rounded-3xl bg-linear-to-r from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-sm md:flex-row md:items-end md:justify-between">
       <div class="space-y-3">
-        <el-button plain class="!border-white/20 !bg-white/10 !text-white" :icon="ArrowLeft" @click="router.back()">
+        <el-button plain class="border-white/20! bg-white/10! text-white!" :icon="ArrowLeft" @click="router.back()">
           返回
         </el-button>
         <div>

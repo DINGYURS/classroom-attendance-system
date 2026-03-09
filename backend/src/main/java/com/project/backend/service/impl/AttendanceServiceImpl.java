@@ -34,8 +34,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -153,6 +155,23 @@ public class AttendanceServiceImpl implements AttendanceService {
                 ? new ArrayList<>()
                 : studentMapper.findByUserIds(studentIds);
 
+        Map<Long, double[]> studentFeatureMap = new HashMap<>();
+        int invalidFeatureCount = 0;
+        for (Student student : students) {
+            if (student.getFeatureVector() == null || student.getFeatureVector().isEmpty()) {
+                continue;
+            }
+
+            double[] storedFeature = loadStudentFeatureVector(student);
+            if (storedFeature.length == 0) {
+                invalidFeatureCount++;
+                continue;
+            }
+            studentFeatureMap.put(student.getUserId(), storedFeature);
+        }
+        log.info("点名特征预处理完成: totalStudents={}, validFeatures={}, invalidFeatures={}",
+                students.size(), studentFeatureMap.size(), invalidFeatureCount);
+
         List<RecognitionResultVO> results = new ArrayList<>();
         Set<Long> matchedStudentIds = new HashSet<>();
 
@@ -165,12 +184,11 @@ public class AttendanceServiceImpl implements AttendanceService {
                 if (matchedStudentIds.contains(student.getUserId())) {
                     continue;
                 }
-                if (student.getFeatureVector() == null || student.getFeatureVector().isEmpty()) {
+
+                double[] storedFeature = studentFeatureMap.get(student.getUserId());
+                if (storedFeature == null || storedFeature.length == 0) {
                     continue;
                 }
-
-                String decryptedJson = AesUtils.decrypt(student.getFeatureVector());
-                double[] storedFeature = parseFeatureVector(decryptedJson);
                 double similarity = cosineSimilarity(inputFeature, storedFeature);
                 if (similarity > SIMILARITY_THRESHOLD && similarity > bestSimilarity) {
                     bestSimilarity = similarity;
@@ -312,6 +330,50 @@ public class AttendanceServiceImpl implements AttendanceService {
     /**
      * 解析特征向量 JSON 字符串为 double 数组
      */
+    private double[] loadStudentFeatureVector(Student student) {
+        String rawFeature = student.getFeatureVector();
+        if (rawFeature == null || rawFeature.isEmpty()) {
+            return new double[0];
+        }
+
+        try {
+            String decryptedJson = AesUtils.decrypt(rawFeature);
+            double[] decryptedFeature = parseFeatureVector(decryptedJson);
+            if (decryptedFeature.length > 0) {
+                return decryptedFeature;
+            }
+
+            log.warn("[ATTEND-301] decrypted feature is not valid JSON, skip student: userId={}, studentNumber={}",
+                    student.getUserId(), student.getStudentNumber());
+            return new double[0];
+        } catch (Exception decryptException) {
+            String trimmedFeature = rawFeature.trim();
+            if (!trimmedFeature.startsWith("[")) {
+                log.warn("[ATTEND-302] invalid encrypted feature, skip student: userId={}, studentNumber={}, reason={}",
+                        student.getUserId(), student.getStudentNumber(), decryptException.getMessage());
+                return new double[0];
+            }
+
+            double[] plainFeature = parseFeatureVector(trimmedFeature);
+            if (plainFeature.length == 0) {
+                log.warn("[ATTEND-303] invalid plain-json feature, skip student: userId={}, studentNumber={}",
+                        student.getUserId(), student.getStudentNumber());
+                return new double[0];
+            }
+
+            try {
+                studentMapper.updateFeatureVector(student.getUserId(), AesUtils.encrypt(trimmedFeature));
+                log.info("[ATTEND-304] repaired plain-json feature to encrypted storage: userId={}, studentNumber={}",
+                        student.getUserId(), student.getStudentNumber());
+            } catch (Exception repairException) {
+                log.warn("[ATTEND-305] parsed plain-json feature but failed to persist repair: userId={}, studentNumber={}, reason={}",
+                        student.getUserId(), student.getStudentNumber(), repairException.getMessage());
+            }
+
+            return plainFeature;
+        }
+    }
+
     private double[] parseFeatureVector(String featureVector) {
         try {
             List<Double> list = JSON.parseArray(featureVector, Double.class);
@@ -321,7 +383,6 @@ public class AttendanceServiceImpl implements AttendanceService {
             }
             return result;
         } catch (Exception e) {
-            log.error("特征向量解析失败: {}", e.getMessage());
             return new double[0];
         }
     }

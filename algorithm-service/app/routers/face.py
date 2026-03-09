@@ -63,11 +63,13 @@ async def extract_face_feature(request: ExtractRequest) -> ApiResponse:
 
 def _detect_single(downloader, engine, idx: int, image_url: str) -> DetectResponse:
     """同步函数：下载 + 推理单张图片，在线程池中执行"""
+    logger.info("[FACE-DETECT-201] start_image index=%d url=%s", idx, image_url)
     image = downloader.download_image(image_url)
     if image is None:
-        logger.warning(f"Failed to download image: {image_url}")
+        logger.warning("[FACE-DETECT-202] download_failed index=%d url=%s", idx, image_url)
         return DetectResponse(imageIndex=idx, faces=[])
 
+    logger.info("[FACE-DETECT-203] download_ok index=%d image_shape=%s", idx, tuple(image.shape))
     faces_data = engine.detect_and_extract_all(image)
     faces = [
         FaceInfo(
@@ -77,6 +79,14 @@ def _detect_single(downloader, engine, idx: int, image_url: str) -> DetectRespon
         )
         for face in faces_data
     ]
+    embedding_ready_count = sum(1 for face in faces if face.embedding is not None)
+    logger.info(
+        "[FACE-DETECT-204] image_done index=%d faces=%d embedding_ready=%d embedding_missing=%d",
+        idx,
+        len(faces),
+        embedding_ready_count,
+        len(faces) - embedding_ready_count,
+    )
     return DetectResponse(imageIndex=idx, faces=faces)
 
 
@@ -92,6 +102,8 @@ async def detect_faces(request: DetectRequest) -> ApiResponse:
         engine = get_face_engine()
         loop = asyncio.get_event_loop()
 
+        logger.info("[FACE-DETECT-205] request_start image_count=%d", len(request.imageUrls))
+
         # 每张图片串行处理（insightface 非线程安全，不并发）
         results: List[DetectResponse] = []
         for idx, image_url in enumerate(request.imageUrls):
@@ -99,6 +111,17 @@ async def detect_faces(request: DetectRequest) -> ApiResponse:
                 _executor, _detect_single, downloader, engine, idx, image_url
             )
             results.append(result)
+
+        total_faces = sum(len(result.faces) for result in results)
+        total_embeddings = sum(
+            1 for result in results for face in result.faces if face.embedding is not None
+        )
+        logger.info(
+            "[FACE-DETECT-206] request_done image_count=%d total_faces=%d total_embeddings=%d",
+            len(results),
+            total_faces,
+            total_embeddings,
+        )
 
         return ApiResponse(code=1, msg="success", data=[r.model_dump() for r in results])
 

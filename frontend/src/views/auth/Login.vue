@@ -197,6 +197,7 @@ const handleRegister = async () => {
               :prefix-icon="activeTab === 'teacher' ?  Postcard : User"
               :placeholder="activeTab === 'teacher' ? '请输入教师工号' : '请输入学生学号'"
               size="large"
+              @keyup.enter="handleRegister"
             />
             <el-input 
               v-else
@@ -204,6 +205,7 @@ const handleRegister = async () => {
               :prefix-icon="User"
               placeholder="请输入账号"
               size="large"
+              @keyup.enter="handleLogin"
             />
           </div>
 
@@ -215,6 +217,7 @@ const handleRegister = async () => {
               :prefix-icon="User"
               placeholder="请输入真实姓名"
               size="large"
+              @keyup.enter="handleRegister"
             />
           </div>
 
@@ -227,6 +230,7 @@ const handleRegister = async () => {
                 :prefix-icon="School"
                 placeholder="例: 计科221"
                 size="large"
+                @keyup.enter="handleRegister"
               />
             </div>
              <div>
@@ -253,6 +257,7 @@ const handleRegister = async () => {
               placeholder="请输入密码"
               show-password
               size="large"
+              @keyup.enter="handleRegister"
             />
             <el-input 
               v-else
@@ -262,6 +267,7 @@ const handleRegister = async () => {
               placeholder="请输入密码"
               show-password
               size="large"
+              @keyup.enter="handleLogin"
             />
           </div>
 
@@ -275,6 +281,7 @@ const handleRegister = async () => {
               placeholder="请再次输入密码"
               show-password
               size="large"
+              @keyup.enter="handleRegister"
             />
           </div>
 
