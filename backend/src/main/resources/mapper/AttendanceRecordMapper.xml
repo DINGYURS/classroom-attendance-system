@@ -24,6 +24,21 @@
         SELECT * FROM attendance_record WHERE student_id = #{studentId} ORDER BY record_id DESC
     </select>
 
+    <select id="findByCourseIdAndStudentId" resultType="com.project.backend.pojo.vo.AttendanceRecordVO">
+        SELECT
+            ar.record_id AS recordId,
+            c.course_name AS courseName,
+            ar.status AS status,
+            s.start_time AS attendanceTime,
+            CAST(ar.similarity_score AS CHAR) AS similarityScore
+        FROM attendance_record ar
+        INNER JOIN attendance_session s ON ar.session_id = s.session_id
+        INNER JOIN course c ON s.course_id = c.course_id
+        WHERE s.course_id = #{courseId}
+          AND ar.student_id = #{studentId}
+        ORDER BY s.start_time DESC, ar.record_id DESC
+    </select>
+
     <insert id="batchInsert" parameterType="list">
         INSERT INTO attendance_record (session_id, student_id, status)
         VALUES

@@ -150,6 +150,37 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
+    public List<AttendanceRecordVO> getTeacherStudentAttendanceRecords(Long courseId, Long studentId) {
+        if (courseId == null || studentId == null) {
+            throw new BusinessException(MessageConstants.PARAM_ERROR);
+        }
+
+        Long teacherId = BaseContext.getCurrentId();
+        User currentUser = userMapper.findById(teacherId);
+        if (currentUser == null) {
+            throw new BusinessException(MessageConstants.USER_NOT_FOUND);
+        }
+        if (!RoleConstants.ROLE_TEACHER.equals(currentUser.getRole())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+
+        var course = courseMapper.findById(courseId);
+        if (course == null || !teacherId.equals(course.getTeacherId())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+
+        boolean studentInCourse = courseStudentMapper.findByCourseId(courseId).stream()
+                .anyMatch(item -> studentId.equals(item.getStudentId()));
+        if (!studentInCourse) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+
+        List<AttendanceRecordVO> records = attendanceRecordMapper.findByCourseIdAndStudentId(courseId, studentId);
+        records.forEach(record -> record.setStatusText(getStatusText(record.getStatus())));
+        return records;
+    }
+
+    @Override
     public PageResult<TeacherStudentTableVO> getTeacherStudentPage(TeacherStudentPageQueryDTO queryDTO) {
         Long teacherId = BaseContext.getCurrentId();
         User currentUser = userMapper.findById(teacherId);
@@ -166,11 +197,30 @@ public class StudentServiceImpl implements StudentService {
 
         Page<TeacherStudentTableVO> page = PageHelper.startPage(currentPage, pageSize);
         List<TeacherStudentTableVO> records = courseStudentMapper.pageTeacherStudents(teacherId, keyword);
+        records.forEach(this::fillTeacherStudentAvatarUrl);
 
         return PageResult.<TeacherStudentTableVO>builder()
                 .total(page.getTotal())
                 .records(records)
                 .build();
+    }
+
+    /**
+     * 将学生头像对象键转换为可直接访问的 MinIO URL。
+     */
+    private void fillTeacherStudentAvatarUrl(TeacherStudentTableVO record) {
+        if (record == null || record.getAvatarUrl() == null || record.getAvatarUrl().isBlank()) {
+            return;
+        }
+
+        String objectKey = record.getAvatarUrl();
+        try {
+            record.setAvatarUrl(minioService.getFileUrl(objectKey));
+        } catch (Exception e) {
+            log.warn("获取教师端学生头像失败，忽略头像展示: userId={}, objectKey={}",
+                    record.getUserId(), objectKey, e);
+            record.setAvatarUrl(null);
+        }
     }
 
     /**

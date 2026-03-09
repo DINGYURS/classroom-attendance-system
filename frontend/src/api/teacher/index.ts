@@ -1,7 +1,14 @@
 import axios from 'axios'
 import request from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
-import type { TeacherUpdateDTO, Result, PageResult, TeacherStudentPageQuery, TeacherStudentTableVO } from '@/types/api'
+import type {
+  AttendanceRecordVO,
+  TeacherUpdateDTO,
+  Result,
+  PageResult,
+  TeacherStudentPageQuery,
+  TeacherStudentTableVO
+} from '@/types/api'
 
 /**
  * 修改教师个人信息
@@ -15,6 +22,15 @@ export function updateTeacherProfile(data: TeacherUpdateDTO) {
  */
 export function getTeacherStudentPage(params: TeacherStudentPageQuery) {
   return request.get<any, Result<PageResult<TeacherStudentTableVO>>>('/teacher/student/page', {
+    params
+  })
+}
+
+/**
+ * 查询教师端学生详情抽屉中的历史考勤记录
+ */
+export function getTeacherStudentAttendanceRecords(params: { courseId: number; studentId: number }) {
+  return request.get<any, Result<AttendanceRecordVO[]>>('/teacher/student/attendance', {
     params
   })
 }

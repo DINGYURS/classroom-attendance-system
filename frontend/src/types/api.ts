@@ -53,10 +53,12 @@ export interface StudentVO {
 }
 
 export interface AttendanceRecordVO {
-  id: number
+  recordId: number
   courseName: string
   status: number
-  createTime: string
+  statusText: string
+  attendanceTime?: string
+  similarityScore?: string
 }
 
 export interface AttendanceStartDTO {
@@ -143,4 +145,5 @@ export interface TeacherStudentTableVO {
   realName: string
   gender: string
   className: string
+  avatarUrl: string
 }

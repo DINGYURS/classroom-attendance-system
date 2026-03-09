@@ -1,6 +1,7 @@
 package com.project.backend.mapper;
 
 import com.project.backend.pojo.entity.AttendanceRecord;
+import com.project.backend.pojo.vo.AttendanceRecordVO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -29,6 +30,12 @@ public interface AttendanceRecordMapper {
     List<AttendanceRecord> findByStudentId(@Param("studentId") Long studentId);
 
     /**
+     * 查询指定课程下某个学生的考勤记录
+     */
+    List<AttendanceRecordVO> findByCourseIdAndStudentId(@Param("courseId") Long courseId,
+                                                        @Param("studentId") Long studentId);
+
+    /**
      * 批量插入考勤记录
      */
     void batchInsert(@Param("list") List<AttendanceRecord> list);
@@ -49,4 +56,3 @@ public interface AttendanceRecordMapper {
      */
     Integer countBySessionIdAndStatus(@Param("sessionId") Long sessionId, @Param("status") Integer status);
 }
-

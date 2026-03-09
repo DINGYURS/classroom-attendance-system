@@ -44,4 +44,7 @@ public class TeacherStudentTableVO implements Serializable {
 
     @Schema(description = "行政班级")
     private String className;
+
+    @Schema(description = "头像 URL")
+    private String avatarUrl;
 }

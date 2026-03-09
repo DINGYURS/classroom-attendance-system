@@ -36,6 +36,11 @@ public interface StudentService {
     List<AttendanceRecordVO> getAttendanceRecords();
 
     /**
+     * 教师查询指定学生在当前课程下的历史考勤记录。
+     */
+    List<AttendanceRecordVO> getTeacherStudentAttendanceRecords(Long courseId, Long studentId);
+
+    /**
      * 分页查询教师端学生管理表格数据。
      */
     PageResult<TeacherStudentTableVO> getTeacherStudentPage(TeacherStudentPageQueryDTO queryDTO);

@@ -39,7 +39,8 @@
                 WHEN s.gender = 2 THEN '女'
                 ELSE '未知'
             END AS gender,
-            IFNULL(s.admin_class, '') AS className
+            IFNULL(s.admin_class, '') AS className,
+            s.avatar_url AS avatarUrl
         FROM course_student cs
         INNER JOIN course c ON cs.course_id = c.course_id
         INNER JOIN student s ON cs.student_id = s.user_id

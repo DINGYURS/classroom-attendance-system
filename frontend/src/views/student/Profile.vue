@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { Camera, List, Edit, Key, User, Checked, Warning, ArrowRight } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
@@ -9,7 +9,6 @@ import { useAuthStore } from '@/stores/auth'
 const authStore = useAuthStore()
 const loading = ref(false)
 
-import { computed } from 'vue'
 const studentInfo = computed(() => {
   const user = authStore.userInfo
   return {
@@ -23,7 +22,6 @@ const studentInfo = computed(() => {
 
 const activities = ref<any[]>([])
 
-// Dialog
 const dialogVisible = ref(false)
 const formRef = ref<FormInstance>()
 const form = reactive({
@@ -40,7 +38,7 @@ const validatePass2 = (_rule: any, value: any, callback: any) => {
       callback()
     }
   } else if (value !== form.password) {
-    callback(new Error('两次输入密码不一致!'))
+    callback(new Error('两次输入密码不一致'))
   } else {
     callback()
   }
@@ -60,7 +58,6 @@ const rules = reactive<FormRules>({
 })
 
 const getStatusType = (status: number) => {
-  // 0: 未签到, 1: 正常, 2: 迟到, 3: 早退, 4: 缺勤, 5: 请假
   switch (status) {
     case 1: return 'success'
     case 2: return 'warning'
@@ -73,23 +70,22 @@ const getStatusType = (status: number) => {
 
 const getStatusText = (status: number) => {
   switch (status) {
-    case 1: return '正常出席'
+    case 1: return '正常出勤'
     case 2: return '迟到'
     case 3: return '早退'
     case 4: return '缺勤'
-     case 5: return '请假'
+    case 5: return '请假'
     default: return '未签到'
   }
 }
 
 const fetchData = async () => {
-  
   try {
     const res = await getAttendanceRecords()
     if (res && res.code === 1) {
-      activities.value = (res.data || []).map((item: any) => ({
-        content: `《${item.courseName || '未知课程'}》考勤 - ${getStatusText(item.status)}`,
-        timestamp: item.createTime, 
+      activities.value = (res.data || []).map((item) => ({
+        content: `《${item.courseName || '未知课程'}》考勤 - ${item.statusText || getStatusText(item.status)}`,
+        timestamp: item.attendanceTime || '',
         type: getStatusType(item.status),
         icon: item.status === 1 ? Checked : (item.status === 4 ? Warning : List)
       }))
@@ -118,11 +114,11 @@ const submitForm = async (formEl: FormInstance | undefined) => {
         if (form.password) {
           payload.password = form.password
         }
-        
+
         const res = await updateStudentInfo(payload)
         if (res && res.code === 1) {
           if (form.password) {
-            ElMessage.error('身份信息已过期')
+            ElMessage.error('身份信息已过期，请重新登录')
             dialogVisible.value = false
             setTimeout(() => {
               authStore.logout()
@@ -130,12 +126,11 @@ const submitForm = async (formEl: FormInstance | undefined) => {
           } else {
             ElMessage.success('个人信息修改成功')
             dialogVisible.value = false
-            
-            // 从后端重新获取最新用户信息，以确保状态一致
+
             try {
               const infoRes = await getStudentInfo()
               if (infoRes && infoRes.code === 1) {
-                authStore.updateUserInfo({ 
+                authStore.updateUserInfo({
                   realName: infoRes.data.realName,
                   avatarUrl: infoRes.data.avatarUrl,
                   adminClass: infoRes.data.adminClass

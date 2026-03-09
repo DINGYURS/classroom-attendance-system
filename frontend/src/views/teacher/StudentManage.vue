@@ -13,8 +13,8 @@ import {
   School
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { downloadTeacherStudentList, getTeacherStudentPage, importTeacherStudentList } from '@/api/teacher'
-import type { TeacherStudentTableVO } from '@/types/api'
+import { downloadTeacherStudentList, getTeacherStudentAttendanceRecords, getTeacherStudentPage, importTeacherStudentList } from '@/api/teacher'
+import type { AttendanceRecordVO, TeacherStudentTableVO } from '@/types/api'
 
 const loading = ref(false)
 const importing = ref(false)
@@ -30,17 +30,22 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const detailDialogVisible = ref(false)
 const currentStudent = ref<Partial<TeacherStudentTableVO>>({})
-
-const attendanceRecords = ref([
-  { date: '2025-09-22 10:00:00', status: 'present', statusText: '正常出勤', reason: '' },
-  { date: '2025-09-15 10:00:00', status: 'absent', statusText: '缺勤', reason: '未在课堂点名时间内签到' },
-  { date: '2025-09-08 10:00:00', status: 'leave', statusText: '请假', reason: '病假，已提前报备' },
-  { date: '2025-09-01 10:00:00', status: 'present', statusText: '正常出勤', reason: '' }
-])
+const attendanceLoading = ref(false)
+const attendanceRecords = ref<AttendanceRecordVO[]>([])
+let attendanceRequestId = 0
 
 const totalStudentCount = computed(() => total.value)
 const currentClassCount = computed(() => new Set(tableData.value.map(item => item.className).filter(Boolean)).size)
 const currentCourseCount = computed(() => new Set(tableData.value.map(item => `${item.courseName}-${item.semester}`)).size)
+const attendedCount = computed(() => attendanceRecords.value.filter(record => record.status !== 0).length)
+const attendanceRateText = computed(() => {
+  const totalCount = attendanceRecords.value.length
+  if (!totalCount) {
+    return '--'
+  }
+  const rate = (attendedCount.value / totalCount) * 100
+  return `${Number(rate.toFixed(2))}%`
+})
 
 const fetchTableData = async () => {
   loading.value = true
@@ -155,25 +160,53 @@ const downloadBlob = (blob: Blob, fileName: string) => {
   window.URL.revokeObjectURL(url)
 }
 
-const viewDetails = (row: TeacherStudentTableVO) => {
-  currentStudent.value = { ...row }
-  detailDialogVisible.value = true
-}
+const loadAttendanceRecords = async (row: TeacherStudentTableVO) => {
+  const requestId = ++attendanceRequestId
+  attendanceLoading.value = true
+  attendanceRecords.value = []
 
-const getStatusType = (status: string) => {
-  switch (status) {
-    case 'present':
-      return 'success'
-    case 'absent':
-      return 'danger'
-    case 'late':
-      return 'warning'
-    case 'leave':
-      return 'info'
-    default:
-      return ''
+  try {
+    const res = await getTeacherStudentAttendanceRecords({
+      courseId: row.courseId,
+      studentId: row.userId
+    })
+    if (requestId !== attendanceRequestId) {
+      return
+    }
+    attendanceRecords.value = res.data || []
+  } catch (error) {
+    if (requestId === attendanceRequestId) {
+      attendanceRecords.value = []
+      ElMessage.error('获取历史考勤失败')
+    }
+    console.error(error)
+  } finally {
+    if (requestId === attendanceRequestId) {
+      attendanceLoading.value = false
+    }
   }
 }
+
+const viewDetails = async (row: TeacherStudentTableVO) => {
+  currentStudent.value = { ...row }
+  detailDialogVisible.value = true
+  await loadAttendanceRecords(row)
+}
+
+const getStatusType = (status: number) => {
+  switch (status) {
+    case 1:
+      return 'success'
+    case 2:
+      return 'warning'
+    case 3:
+      return 'info'
+    default:
+      return 'danger'
+  }
+}
+
+const formatAttendanceTime = (value?: string) => value ? value.replace('T', ' ') : '--'
 
 onMounted(() => {
   fetchTableData()
@@ -341,8 +374,9 @@ onMounted(() => {
     >
       <div v-if="currentStudent.userId" class="flex flex-col gap-6 h-full">
         <div class="flex items-center gap-5 bg-linear-to-r from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-100">
-          <el-avatar :size="72" class="bg-blue-600 font-bold text-xl text-white outline-4 outline-white shadow-md">
-            {{ currentStudent.realName?.charAt(0) }}
+          <el-avatar :size="72" class="bg-blue-600 font-bold text-xl text-white outline-4 outline-white shadow-md overflow-hidden">
+            <span v-if="!currentStudent.avatarUrl">{{ currentStudent.realName?.charAt(0) }}</span>
+            <img v-else :src="currentStudent.avatarUrl" :alt="currentStudent.realName || '学生头像'" class="w-full h-full object-cover" />
           </el-avatar>
           <div>
             <div class="text-xl font-bold text-gray-900 flex items-center gap-2">
@@ -364,7 +398,7 @@ onMounted(() => {
             <el-descriptions-item label="所属课程">{{ currentStudent.courseName }}</el-descriptions-item>
             <el-descriptions-item label="开课学期">{{ currentStudent.semester }}</el-descriptions-item>
             <el-descriptions-item label="全勤率">
-              <span class="text-green-600 font-bold">75%</span> (3 / 4 次)
+              <span class="text-green-600 font-bold">{{ attendanceRateText }}</span> ({{ attendedCount }} / {{ attendanceRecords.length }} 次)
             </el-descriptions-item>
           </el-descriptions>
         </div>
@@ -372,24 +406,28 @@ onMounted(() => {
         <div class="flex-1 flex flex-col min-h-0">
           <h3 class="text-md font-bold mb-3 border-l-4 border-blue-500 pl-2 text-gray-800 flex justify-between">
             <span>历史考勤轨迹</span>
-            <span class="text-xs font-normal text-gray-400">当前为静态示例数据</span>
+            <span class="text-xs font-normal text-gray-400">{{ attendanceLoading ? '加载中...' : '共 ' + attendanceRecords.length + ' 条记录' }}</span>
           </h3>
-          <div class="flex-1 overflow-auto px-2 pb-2">
-            <el-timeline class="pt-2" style="padding-left: 2px;">
+          <div class="flex-1 overflow-auto px-2 pb-2" v-loading="attendanceLoading">
+            <div v-if="!attendanceLoading && attendanceRecords.length === 0" class="flex min-h-40 items-center justify-center text-sm text-gray-400">
+              暂无历史考勤记录
+            </div>
+            <el-timeline v-else class="pt-2" style="padding-left: 2px;">
               <el-timeline-item
                 v-for="(record, index) in attendanceRecords"
-                :key="index"
+                :key="record.recordId"
                 :type="getStatusType(record.status)"
-                :hollow="record.status === 'present'"
-                :timestamp="record.date"
+                :hollow="record.status === 1"
+                :timestamp="formatAttendanceTime(record.attendanceTime)"
                 placement="top"
               >
                 <el-card shadow="hover" class="my-0! border-gray-100" body-class="p-3">
                   <div class="flex justify-between items-start gap-4">
                     <div class="flex flex-col gap-1">
-                      <span class="text-sm font-bold text-gray-700">第 {{ attendanceRecords.length - index }} 次点名</span>
-                      <span v-if="record.reason" class="text-xs text-gray-500 line-clamp-2">
-                        备注：{{ record.reason }}
+                      <span class="text-sm font-bold text-gray-700">第{{ attendanceRecords.length - index }}次点名</span>
+                      <span class="text-xs text-gray-500">{{ record.courseName }}</span>
+                      <span v-if="record.similarityScore" class="text-xs text-gray-500">
+                        相似度：{{ record.similarityScore }}
                       </span>
                     </div>
                     <el-tag :type="getStatusType(record.status)">
