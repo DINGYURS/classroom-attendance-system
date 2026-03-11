@@ -36,7 +36,8 @@ const loadCourses = async () => {
       class: course.classes && course.classes.length > 0 ? course.classes.join(', ') : '暂无授课班级',
       studentCount: course.studentCount || 0,
       lastSession: course.semester || '暂无学期',
-      attendanceRate: course.attendanceRate !== undefined && course.attendanceRate !== null ? course.attendanceRate : 100,
+      attendanceRate: course.attendanceRate,
+      hasAttendanceRate: course.attendanceRate !== undefined && course.attendanceRate !== null,
       coverColor: coverColors[index % coverColors.length]
     }))
   } catch (error: any) {
@@ -204,14 +205,17 @@ const handleStartRollCall = (courseId: number) => {
                   <div>
                     <div class="flex justify-between text-xs mb-1">
                       <span class="text-gray-500">最近出勤率</span>
-                      <span class="font-bold text-gray-700">{{ course.attendanceRate }}%</span>
+                      <span v-if="course.hasAttendanceRate" class="font-bold text-gray-700">{{ course.attendanceRate }}%</span>
+                      <span v-else class="font-bold text-gray-400">--</span>
                     </div>
-                    <el-progress 
+                    <el-progress
+                      v-if="course.hasAttendanceRate"
                       :percentage="course.attendanceRate" 
                       :status="course.attendanceRate >= 90 ? 'success' : 'warning'"
                       :stroke-width="8"
                       :show-text="false"
                     />
+                    <div v-else class="h-2 rounded bg-gray-100"></div>
                   </div>
 
                   <div class="flex gap-2">

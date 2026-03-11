@@ -3,11 +3,13 @@ package com.project.backend.service.impl;
 import com.project.backend.constant.MessageConstants;
 import com.project.backend.context.BaseContext;
 import com.project.backend.exception.BusinessException;
+import com.project.backend.mapper.AttendanceSessionMapper;
 import com.project.backend.mapper.CourseMapper;
 import com.project.backend.mapper.CourseStudentMapper;
 import com.project.backend.mapper.StudentMapper;
 import com.project.backend.mapper.UserMapper;
 import com.project.backend.pojo.dto.CourseDTO;
+import com.project.backend.pojo.entity.AttendanceSession;
 import com.project.backend.pojo.entity.Course;
 import com.project.backend.pojo.entity.CourseStudent;
 import com.project.backend.pojo.entity.Student;
@@ -20,6 +22,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +46,9 @@ public class CourseServiceImpl implements CourseService {
 
     @Autowired
     private StudentMapper studentMapper;
+
+    @Autowired
+    private AttendanceSessionMapper attendanceSessionMapper;
 
     @Override
     public Long createCourse(CourseDTO courseDTO) {
@@ -118,7 +125,7 @@ public class CourseServiceImpl implements CourseService {
                     .description(course.getDescription())
                     .studentCount(studentCount != null ? studentCount : 0)
                     .classes(classes)
-                    .attendanceRate(100.0)
+                    .attendanceRate(calculateLatestAttendanceRate(course.getCourseId()))
                     .build());
         }
 
@@ -142,6 +149,7 @@ public class CourseServiceImpl implements CourseService {
                 .description(course.getDescription())
                 .studentCount(studentCount != null ? studentCount : 0)
                 .classes(classes)
+                .attendanceRate(calculateLatestAttendanceRate(courseId))
                 .build();
     }
 
@@ -191,5 +199,23 @@ public class CourseServiceImpl implements CourseService {
     public void removeStudentFromCourse(Long courseId, Long studentId) {
         courseStudentMapper.delete(courseId, studentId);
         log.info("学生 {} 从课程 {} 移除", studentId, courseId);
+    }
+    private Double calculateLatestAttendanceRate(Long courseId) {
+        List<AttendanceSession> sessions = attendanceSessionMapper.findByCourseId(courseId);
+        if (sessions == null || sessions.isEmpty()) {
+            return null;
+        }
+
+        AttendanceSession latestSession = sessions.getFirst();
+        Integer totalStudent = latestSession.getTotalStudent();
+        if (totalStudent == null || totalStudent <= 0) {
+            return 0.0;
+        }
+
+        int actualStudent = latestSession.getActualStudent() != null ? latestSession.getActualStudent() : 0;
+        return BigDecimal.valueOf(actualStudent)
+                .multiply(BigDecimal.valueOf(100))
+                .divide(BigDecimal.valueOf(totalStudent), 2, RoundingMode.HALF_UP)
+                .doubleValue();
     }
 }
