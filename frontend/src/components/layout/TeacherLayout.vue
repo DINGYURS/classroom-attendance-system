@@ -186,9 +186,9 @@ const activeMenu = computed(() => route.path)
 
       <!-- Page Content -->
       <main class="flex-1 overflow-auto p-6 relative">
-        <router-view v-slot="{ Component }">
+        <router-view v-slot="{ Component, route: currentRoute }">
           <transition name="fade" mode="out-in">
-            <component :is="Component" />
+            <component :is="Component" :key="currentRoute.path" />
           </transition>
         </router-view>
       </main>
