@@ -36,6 +36,12 @@ const router = createRouter({
           meta: { title: '课程管理' }
         },
         {
+          path: 'course/:id',
+          name: 'teacher-class-manage',
+          component: () => import('../views/teacher/ClassManage.vue'),
+          meta: { title: '班级管理' }
+        },
+        {
           path: 'student',
           name: 'teacher-student',
           component: () => import('../views/teacher/StudentManage.vue'),
