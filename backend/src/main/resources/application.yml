@@ -30,7 +30,7 @@ springdoc:
     tags-sorter: alpha
     operations-sorter: alpha
   group-configs:
-    - group: ''
+    - group: '全部接口'
       paths-to-match: '/**'
       packages-to-scan: com.project.backend.controller
 
