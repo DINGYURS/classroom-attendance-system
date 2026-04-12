@@ -1,9 +1,12 @@
 package com.project.backend.controller;
 
+import com.project.backend.pojo.dto.TeacherStudentPageQueryDTO;
+import com.project.backend.pojo.result.PageResult;
 import com.project.backend.pojo.dto.CourseDTO;
 import com.project.backend.pojo.result.Result;
 import com.project.backend.pojo.vo.CourseStudentVO;
 import com.project.backend.pojo.vo.CourseVO;
+import com.project.backend.pojo.vo.TeacherStudentTableVO;
 import com.project.backend.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -76,6 +79,18 @@ public class CourseController {
     public Result<CourseVO> getCourseDetail(@PathVariable Long courseId) {
         CourseVO courseVO = courseService.getCourseDetail(courseId);
         return Result.success(courseVO);
+    }
+
+    /**
+     * 分页获取课程学生名单
+     */
+    @GetMapping("/{courseId}/students/page")
+    @Operation(summary = "分页获取课程学生名单", description = "按课程维度返回学生表格数据，支持关键字搜索与分页")
+    public Result<PageResult<TeacherStudentTableVO>> getCourseStudentPage(@PathVariable Long courseId,
+                                                                          TeacherStudentPageQueryDTO queryDTO) {
+        log.info("分页获取课程学生名单: courseId={}, currentPage={}, pageSize={}, keyword={}",
+                courseId, queryDTO.getCurrentPage(), queryDTO.getPageSize(), queryDTO.getKeyword());
+        return Result.success(courseService.getCourseStudentPage(courseId, queryDTO));
     }
 
     /**

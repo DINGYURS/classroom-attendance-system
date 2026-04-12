@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import {
   Search,
   ArrowLeft,
@@ -10,103 +11,75 @@ import {
   Postcard,
   School
 } from '@element-plus/icons-vue'
+import { getCourseDetail, getCourseStudentPage } from '@/api/course'
+import type { TeacherStudentTableVO } from '@/types/api'
 
 const route = useRoute()
 const router = useRouter()
 
-// ===== 数据定义 =====
-// 模拟的数据接口
-interface ClassStudentVO {
-  userId: number;
-  studentId: string;
-  realName: string;
-  gender: string;
-  className: string;
-  avatarUrl?: string;
-  courseName?: string;
-}
+const courseId = computed(() => Number(route.params.id))
+const courseName = ref('')
 
-const courseId = computed(() => route.params.id)
-const courseName = ref('Java程序设计') // 模拟的课程名
-
-// 状态和分页
 const loading = ref(false)
-const tableData = ref<ClassStudentVO[]>([])
+const tableData = ref<TeacherStudentTableVO[]>([])
 const searchQuery = ref('')
 const currentPage = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 
-// 详情弹窗状态
 const detailDialogVisible = ref(false)
-const currentStudent = ref<Partial<ClassStudentVO>>({})
+const currentStudent = ref<Partial<TeacherStudentTableVO>>({})
 
-// ===== Mock 数据生成 =====
-const generateMockData = (): ClassStudentVO[] => {
-  const data: ClassStudentVO[] = []
-  const classNames = ['软件工程2101班', '软件工程2102班', '计算机科学2101班']
-  const firstNames = ['伟', '芳', '娜', '秀英', '敏', '静', '丽', '强', '磊', '军', '洋', '勇', '艳', '杰', '娟', '涛', '明', '超', '秀兰', '霞']
-  const lastNames = ['李', '王', '张', '刘', '陈', '杨', '赵', '黄', '周', '吴', '徐', '孙', '胡', '朱', '高', '林', '何', '郭', '马', '罗']
+const totalStudentCount = computed(() => total.value)
+const currentClassCount = computed(() => new Set(tableData.value.map(item => item.className).filter(Boolean)).size)
 
-  for (let i = 1; i <= 55; i++) {
-    const lastName = lastNames[Math.floor(Math.random() * lastNames.length)] || '李'
-    const firstName = firstNames[Math.floor(Math.random() * firstNames.length)] || '伟'
-    const gender = ['男', '女'][Math.floor(Math.random() * 2)] || '男'
-    const className = classNames[Math.floor(Math.random() * classNames.length)] || '软件工程2101班'
-    
-    data.push({
-      userId: 1000 + i,
-      studentId: `2021${Math.floor(Math.random() * 900000 + 100000)}`,
-      realName: lastName + firstName,
-      gender: gender,
-      className: className,
-      courseName: 'Java程序设计',
-      avatarUrl: Math.random() > 0.5 ? `https://api.dicebear.com/7.x/avataaars/svg?seed=${i}` : undefined
-    })
+const loadCourseDetail = async () => {
+  const id = courseId.value
+  if (!id || Number.isNaN(id)) {
+    ElMessage.error('课程 ID 无效')
+    router.replace('/teacher/course')
+    return
   }
-  return data
+
+  const res = await getCourseDetail(id)
+  courseName.value = res.data.courseName || ''
 }
 
-// 缓存的所有 Mock 数据
-const allMockData = ref<ClassStudentVO[]>([])
+const fetchTableData = async () => {
+  const id = courseId.value
+  if (!id || Number.isNaN(id)) {
+    ElMessage.error('课程 ID 无效')
+    router.replace('/teacher/course')
+    return
+  }
 
-// ===== 方法 =====
-const fetchTableData = () => {
   loading.value = true
-  
-  // 模拟请求延迟
-  setTimeout(() => {
-    // 过滤
-    let filtered = allMockData.value
-    if (searchQuery.value) {
-      const q = searchQuery.value.trim().toLowerCase()
-      filtered = filtered.filter(item => 
-        item.studentId.includes(q) || 
-        item.realName.includes(q) || 
-        item.className.includes(q)
-      )
-    }
-    
-    total.value = filtered.length
-    
-    // 分页
-    const start = (currentPage.value - 1) * pageSize.value
-    const end = start + pageSize.value
-    tableData.value = filtered.slice(start, end)
-    
+  try {
+    const res = await getCourseStudentPage(id, {
+      keyword: searchQuery.value.trim() || undefined,
+      currentPage: currentPage.value,
+      pageSize: pageSize.value
+    })
+    tableData.value = res.data.records || []
+    total.value = res.data.total || 0
+  } catch (error: any) {
+    console.error(error)
+    tableData.value = []
+    total.value = 0
+  } finally {
     loading.value = false
-  }, 400)
+  }
 }
 
-const handleSearch = () => {
+const handleSearch = async () => {
   currentPage.value = 1
-  fetchTableData()
+  await fetchTableData()
 }
 
-const handleReset = () => {
+const handleReset = async () => {
   searchQuery.value = ''
   currentPage.value = 1
-  fetchTableData()
+  await fetchTableData()
 }
 
 const handlePageChange = () => {
@@ -118,7 +91,7 @@ const handleSizeChange = () => {
   fetchTableData()
 }
 
-const viewDetails = (row: ClassStudentVO) => {
+const viewDetails = (row: TeacherStudentTableVO) => {
   currentStudent.value = { ...row }
   detailDialogVisible.value = true
 }
@@ -127,13 +100,9 @@ const goBack = () => {
   router.push('/teacher/dashboard')
 }
 
-// 顶部统计 (Mock计算)
-const totalStudentCount = computed(() => allMockData.value.length)
-const currentClassCount = computed(() => new Set(tableData.value.map(item => item.className)).size)
-
-onMounted(() => {
-  allMockData.value = generateMockData()
-  fetchTableData()
+onMounted(async () => {
+  await loadCourseDetail()
+  await fetchTableData()
 })
 </script>
 
@@ -302,7 +271,7 @@ onMounted(() => {
           <el-descriptions :column="1" border size="default" class="bg-white">
             <el-descriptions-item label="所属课程">{{ currentStudent.courseName }}</el-descriptions-item>
             <el-descriptions-item label="课程ID">{{ courseId }}</el-descriptions-item>
-            <el-descriptions-item label="系统备注">这只是一个 Mock 数据展示页</el-descriptions-item>
+            <el-descriptions-item label="系统备注">数据来源于课程信息、选课关系和学生档案</el-descriptions-item>
           </el-descriptions>
         </div>
       </div>

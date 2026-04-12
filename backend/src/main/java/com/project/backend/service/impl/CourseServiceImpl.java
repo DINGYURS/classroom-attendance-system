@@ -1,6 +1,9 @@
 package com.project.backend.service.impl;
 
+import com.github.pagehelper.Page;
+import com.github.pagehelper.PageHelper;
 import com.project.backend.constant.MessageConstants;
+import com.project.backend.constant.RoleConstants;
 import com.project.backend.context.BaseContext;
 import com.project.backend.exception.BusinessException;
 import com.project.backend.mapper.AttendanceSessionMapper;
@@ -14,9 +17,13 @@ import com.project.backend.pojo.entity.Course;
 import com.project.backend.pojo.entity.CourseStudent;
 import com.project.backend.pojo.entity.Student;
 import com.project.backend.pojo.entity.User;
+import com.project.backend.pojo.dto.TeacherStudentPageQueryDTO;
+import com.project.backend.pojo.result.PageResult;
 import com.project.backend.pojo.vo.CourseStudentVO;
+import com.project.backend.pojo.vo.TeacherStudentTableVO;
 import com.project.backend.pojo.vo.CourseVO;
 import com.project.backend.service.CourseService;
+import com.project.backend.service.MinioService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -49,6 +56,9 @@ public class CourseServiceImpl implements CourseService {
 
     @Autowired
     private AttendanceSessionMapper attendanceSessionMapper;
+
+    @Autowired
+    private MinioService minioService;
 
     @Override
     public Long createCourse(CourseDTO courseDTO) {
@@ -154,6 +164,28 @@ public class CourseServiceImpl implements CourseService {
     }
 
     @Override
+    public PageResult<TeacherStudentTableVO> getCourseStudentPage(Long courseId, TeacherStudentPageQueryDTO queryDTO) {
+        if (courseId == null) {
+            throw new BusinessException(MessageConstants.PARAM_ERROR);
+        }
+
+        validateTeacherCoursePermission(courseId);
+
+        int currentPage = queryDTO.getCurrentPage() == null || queryDTO.getCurrentPage() < 1 ? 1 : queryDTO.getCurrentPage();
+        int pageSize = queryDTO.getPageSize() == null || queryDTO.getPageSize() < 1 ? 10 : Math.min(queryDTO.getPageSize(), 100);
+        String keyword = normalizeKeyword(queryDTO.getKeyword());
+
+        Page<TeacherStudentTableVO> page = PageHelper.startPage(currentPage, pageSize);
+        List<TeacherStudentTableVO> records = courseStudentMapper.pageCourseStudents(courseId, keyword);
+        records.forEach(this::fillTeacherStudentAvatarUrl);
+
+        return PageResult.<TeacherStudentTableVO>builder()
+                .total(page.getTotal())
+                .records(records)
+                .build();
+    }
+
+    @Override
     public List<CourseStudentVO> getCourseStudents(Long courseId) {
         List<Long> studentIds = courseStudentMapper.findStudentIdsByCourseId(courseId);
         if (studentIds.isEmpty()) {
@@ -200,6 +232,58 @@ public class CourseServiceImpl implements CourseService {
         courseStudentMapper.delete(courseId, studentId);
         log.info("学生 {} 从课程 {} 移除", studentId, courseId);
     }
+
+    /**
+     * 校验当前登录教师是否有权限访问指定课程。
+     */
+    private void validateTeacherCoursePermission(Long courseId) {
+        Long teacherId = BaseContext.getCurrentId();
+        User currentUser = teacherId == null ? null : userMapper.findById(teacherId);
+        if (currentUser == null) {
+            throw new BusinessException(MessageConstants.USER_NOT_FOUND);
+        }
+        if (!RoleConstants.ROLE_TEACHER.equals(currentUser.getRole())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+
+        Course course = courseMapper.findById(courseId);
+        if (course == null) {
+            throw new BusinessException("课程不存在");
+        }
+        if (!teacherId.equals(course.getTeacherId())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+    }
+
+    /**
+     * 将学生头像对象键转换为可直接访问的 MinIO URL。
+     */
+    private void fillTeacherStudentAvatarUrl(TeacherStudentTableVO record) {
+        if (record == null || record.getAvatarUrl() == null || record.getAvatarUrl().isBlank()) {
+            return;
+        }
+
+        String objectKey = record.getAvatarUrl();
+        try {
+            record.setAvatarUrl(minioService.getFileUrl(objectKey));
+        } catch (Exception e) {
+            log.warn("获取课程学生头像失败，忽略头像展示: courseId={}, userId={}, objectKey={}",
+                    record.getCourseId(), record.getUserId(), objectKey, e);
+            record.setAvatarUrl(null);
+        }
+    }
+
+    /**
+     * 规范化关键字，空白字符串按 null 处理。
+     */
+    private String normalizeKeyword(String keyword) {
+        if (keyword == null) {
+            return null;
+        }
+        String trimmed = keyword.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
     private Double calculateLatestAttendanceRate(Long courseId) {
         List<AttendanceSession> sessions = attendanceSessionMapper.findByCourseId(courseId);
         if (sessions == null || sessions.isEmpty()) {

@@ -1,8 +1,11 @@
 package com.project.backend.service;
 
 import com.project.backend.pojo.dto.CourseDTO;
+import com.project.backend.pojo.dto.TeacherStudentPageQueryDTO;
+import com.project.backend.pojo.result.PageResult;
 import com.project.backend.pojo.vo.CourseStudentVO;
 import com.project.backend.pojo.vo.CourseVO;
+import com.project.backend.pojo.vo.TeacherStudentTableVO;
 
 import java.util.List;
 
@@ -47,6 +50,15 @@ public interface CourseService {
      * @return 课程信息
      */
     CourseVO getCourseDetail(Long courseId);
+
+    /**
+     * 分页获取课程学生名单
+     *
+     * @param courseId 课程 ID
+     * @param queryDTO 查询参数
+     * @return 分页学生列表
+     */
+    PageResult<TeacherStudentTableVO> getCourseStudentPage(Long courseId, TeacherStudentPageQueryDTO queryDTO);
 
     /**
      * 获取课程学生名单

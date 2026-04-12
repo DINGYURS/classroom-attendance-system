@@ -44,6 +44,12 @@ public interface CourseStudentMapper {
     Integer countByCourseId(@Param("courseId") Long courseId);
 
     /**
+     * 查询课程维度的学生管理表格数据。
+     */
+    List<TeacherStudentTableVO> pageCourseStudents(@Param("courseId") Long courseId,
+                                                   @Param("keyword") String keyword);
+
+    /**
      * 查询教师端学生管理表格数据。
      */
     List<TeacherStudentTableVO> pageTeacherStudents(@Param("teacherId") Long teacherId,
