@@ -30,6 +30,11 @@ public interface AttendanceRecordMapper {
     List<AttendanceRecord> findByStudentId(@Param("studentId") Long studentId);
 
     /**
+     * 查询学生考勤中心记录明细
+     */
+    List<AttendanceRecordVO> findAttendanceDetailsByStudentId(@Param("studentId") Long studentId);
+
+    /**
      * 查询指定课程下某个学生的考勤记录
      */
     List<AttendanceRecordVO> findByCourseIdAndStudentId(@Param("courseId") Long courseId,

@@ -66,6 +66,12 @@ const router = createRouter({
           name: 'student-profile',
           component: () => import('../views/student/Profile.vue'),
           meta: { title: '个人中心' }
+        },
+        {
+          path: 'attendance',
+          name: 'student-attendance',
+          component: () => import('../views/student/Attendance.vue'),
+          meta: { title: '我的考勤' }
         }
       ]
     },

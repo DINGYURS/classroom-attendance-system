@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Camera, List, Edit, Key, User, Checked, Warning, ArrowRight } from '@element-plus/icons-vue'
+import { Camera, List, Edit, Key, User, Checked, Warning, ArrowRight, DataLine } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { updateStudentInfo, getAttendanceRecords, getStudentInfo } from '@/api/student'
@@ -61,20 +61,18 @@ const getStatusType = (status: number) => {
   switch (status) {
     case 1: return 'success'
     case 2: return 'warning'
-    case 3: return 'warning'
-    case 4: return 'danger'
-    case 5: return 'info'
+    case 0: return 'danger'
+    case 3: return 'info'
     default: return 'info'
   }
 }
 
 const getStatusText = (status: number) => {
   switch (status) {
-    case 1: return '正常出勤'
+    case 1: return '已到'
     case 2: return '迟到'
-    case 3: return '早退'
-    case 4: return '缺勤'
-    case 5: return '请假'
+    case 0: return '缺勤'
+    case 3: return '请假'
     default: return '未签到'
   }
 }
@@ -87,7 +85,7 @@ const fetchData = async () => {
         content: `《${item.courseName || '未知课程'}》考勤 - ${item.statusText || getStatusText(item.status)}`,
         timestamp: item.attendanceTime || '',
         type: getStatusType(item.status),
-        icon: item.status === 1 ? Checked : (item.status === 4 ? Warning : List)
+        icon: item.status === 1 ? Checked : (item.status === 0 ? Warning : List)
       }))
     }
   } catch (error) {
@@ -218,7 +216,23 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- Attendance Records -->
+      <!-- Attendance Center Action Card -->
+      <div class="bg-white rounded-2xl shadow-xs p-5 flex items-center justify-between border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" @click="$router.push('/student/attendance')">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-full bg-indigo-50 text-indigo-500 flex items-center justify-center text-xl transition-colors">
+            <el-icon><DataLine /></el-icon>
+          </div>
+          <div>
+            <h3 class="font-bold text-gray-800 tracking-wide text-base">考勤中心</h3>
+            <p class="text-xs text-gray-500 mt-1">查看详细历史记录与学期统计</p>
+          </div>
+        </div>
+        <div class="text-gray-300">
+           <el-icon><ArrowRight /></el-icon>
+        </div>
+      </div>
+
+      <!-- Attendance Records Preview -->
       <div class="bg-white rounded-2xl shadow-xs border border-gray-100 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-50/80 bg-gray-50/50 flex items-center justify-between">
           <h3 class="font-bold text-gray-800 flex items-center gap-2 text-base tracking-wide">

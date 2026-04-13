@@ -24,13 +24,37 @@
         SELECT * FROM attendance_record WHERE student_id = #{studentId} ORDER BY record_id DESC
     </select>
 
+    <select id="findAttendanceDetailsByStudentId" resultType="com.project.backend.pojo.vo.AttendanceRecordVO">
+        SELECT
+            ar.record_id AS recordId,
+            s.session_id AS sessionId,
+            c.course_id AS courseId,
+            c.course_name AS courseName,
+            c.semester AS semester,
+            IFNULL(stu.admin_class, '') AS teachingClass,
+            ar.status AS status,
+            s.start_time AS attendanceTime,
+            CAST(ar.similarity_score AS CHAR) AS similarityScore,
+            ar.update_type AS updateType
+        FROM attendance_record ar
+        INNER JOIN attendance_session s ON ar.session_id = s.session_id
+        INNER JOIN course c ON s.course_id = c.course_id
+        LEFT JOIN student stu ON ar.student_id = stu.user_id
+        WHERE ar.student_id = #{studentId}
+        ORDER BY s.start_time DESC, ar.record_id DESC
+    </select>
+
     <select id="findByCourseIdAndStudentId" resultType="com.project.backend.pojo.vo.AttendanceRecordVO">
         SELECT
             ar.record_id AS recordId,
+            s.session_id AS sessionId,
+            c.course_id AS courseId,
             c.course_name AS courseName,
+            c.semester AS semester,
             ar.status AS status,
             s.start_time AS attendanceTime,
-            CAST(ar.similarity_score AS CHAR) AS similarityScore
+            CAST(ar.similarity_score AS CHAR) AS similarityScore,
+            ar.update_type AS updateType
         FROM attendance_record ar
         INNER JOIN attendance_session s ON ar.session_id = s.session_id
         INNER JOIN course c ON s.course_id = c.course_id
@@ -50,7 +74,8 @@
     <update id="update">
         UPDATE attendance_record
         SET status = #{status},
-            similarity_score = #{similarityScore}
+            similarity_score = #{similarityScore},
+            update_type = #{updateType}
         WHERE record_id = #{recordId}
     </update>
 

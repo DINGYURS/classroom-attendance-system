@@ -304,6 +304,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         }
 
         record.setStatus(updateDTO.getStatus());
+        record.setUpdateType(2);
         attendanceRecordMapper.update(record);
 
         AttendanceSession session = attendanceSessionMapper.findById(record.getSessionId());

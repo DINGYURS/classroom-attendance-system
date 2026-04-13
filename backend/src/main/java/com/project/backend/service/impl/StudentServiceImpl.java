@@ -7,15 +7,12 @@ import com.project.backend.constant.RoleConstants;
 import com.project.backend.context.BaseContext;
 import com.project.backend.exception.BusinessException;
 import com.project.backend.mapper.AttendanceRecordMapper;
-import com.project.backend.mapper.AttendanceSessionMapper;
 import com.project.backend.mapper.CourseMapper;
 import com.project.backend.mapper.CourseStudentMapper;
 import com.project.backend.mapper.StudentMapper;
 import com.project.backend.mapper.UserMapper;
 import com.project.backend.pojo.dto.FaceFeatureDTO;
 import com.project.backend.pojo.dto.TeacherStudentPageQueryDTO;
-import com.project.backend.pojo.entity.AttendanceRecord;
-import com.project.backend.pojo.entity.AttendanceSession;
 import com.project.backend.pojo.entity.Student;
 import com.project.backend.pojo.entity.User;
 import com.project.backend.pojo.result.PageResult;
@@ -31,7 +28,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -52,9 +48,6 @@ public class StudentServiceImpl implements StudentService {
 
     @Autowired
     private AttendanceRecordMapper attendanceRecordMapper;
-
-    @Autowired
-    private AttendanceSessionMapper attendanceSessionMapper;
 
     @Autowired
     private CourseMapper courseMapper;
@@ -123,29 +116,11 @@ public class StudentServiceImpl implements StudentService {
     @Override
     public List<AttendanceRecordVO> getAttendanceRecords() {
         Long userId = BaseContext.getCurrentId();
-        List<AttendanceRecord> records = attendanceRecordMapper.findByStudentId(userId);
-
-        List<AttendanceRecordVO> result = new ArrayList<>();
-        for (AttendanceRecord record : records) {
-            AttendanceSession session = attendanceSessionMapper.findById(record.getSessionId());
-            String courseName = "";
-            if (session != null) {
-                var course = courseMapper.findById(session.getCourseId());
-                if (course != null) {
-                    courseName = course.getCourseName();
-                }
-            }
-
-            result.add(AttendanceRecordVO.builder()
-                    .recordId(record.getRecordId())
-                    .courseName(courseName)
-                    .status(record.getStatus())
-                    .statusText(getStatusText(record.getStatus()))
-                    .attendanceTime(session != null ? session.getStartTime() : null)
-                    .similarityScore(record.getSimilarityScore() != null ? record.getSimilarityScore().toString() : null)
-                    .build());
-        }
-
+        List<AttendanceRecordVO> result = attendanceRecordMapper.findAttendanceDetailsByStudentId(userId);
+        result.forEach(record -> {
+            record.setStatusText(getStatusText(record.getStatus()));
+            record.setManualModified(Integer.valueOf(2).equals(record.getUpdateType()));
+        });
         return result;
     }
 
