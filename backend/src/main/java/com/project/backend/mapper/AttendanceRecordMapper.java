@@ -25,6 +25,11 @@ public interface AttendanceRecordMapper {
     List<AttendanceRecord> findBySessionId(@Param("sessionId") Long sessionId);
 
     /**
+     * 根据会话 ID 列表查询考勤记录
+     */
+    List<AttendanceRecord> findBySessionIds(@Param("sessionIds") List<Long> sessionIds);
+
+    /**
      * 根据学生 ID 查询考勤记录
      */
     List<AttendanceRecord> findByStudentId(@Param("studentId") Long studentId);

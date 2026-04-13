@@ -4,6 +4,8 @@ import com.project.backend.pojo.entity.User;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
+import java.util.List;
+
 /**
  * 用户 Mapper 接口
  */
@@ -25,6 +27,14 @@ public interface UserMapper {
      * @return 用户信息
      */
     User findById(@Param("userId") Long userId);
+
+    /**
+     * 根据用户 ID 列表查询用户
+     *
+     * @param userIds 用户 ID 列表
+     * @return 用户列表
+     */
+    List<User> findByIds(@Param("userIds") List<Long> userIds);
 
     /**
      * 用户注册

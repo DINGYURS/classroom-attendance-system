@@ -29,6 +29,14 @@ public interface AttendanceSessionMapper {
     List<AttendanceSession> findByCourseId(@Param("courseId") Long courseId);
 
     /**
+     * 根据课程 ID 列表查询会话列表
+     *
+     * @param courseIds 课程 ID 列表
+     * @return 会话列表
+     */
+    List<AttendanceSession> findByCourseIds(@Param("courseIds") List<Long> courseIds);
+
+    /**
      * 插入会话
      *
      * @param session 会话信息

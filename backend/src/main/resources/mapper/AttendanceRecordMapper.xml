@@ -20,6 +20,16 @@
         SELECT * FROM attendance_record WHERE session_id = #{sessionId}
     </select>
 
+    <select id="findBySessionIds" resultMap="BaseResultMap">
+        SELECT *
+        FROM attendance_record
+        WHERE session_id IN
+        <foreach collection="sessionIds" item="sessionId" open="(" separator="," close=")">
+            #{sessionId}
+        </foreach>
+        ORDER BY session_id ASC, record_id ASC
+    </select>
+
     <select id="findByStudentId" resultMap="BaseResultMap">
         SELECT * FROM attendance_record WHERE student_id = #{studentId} ORDER BY record_id DESC
     </select>

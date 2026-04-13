@@ -1,7 +1,9 @@
 package com.project.backend.controller;
 
+import com.project.backend.pojo.dto.StatisticsDashboardQueryDTO;
 import com.project.backend.pojo.result.Result;
 import com.project.backend.pojo.vo.CourseStatisticsVO;
+import com.project.backend.pojo.vo.StatisticsDashboardVO;
 import com.project.backend.pojo.vo.StudentStatisticsVO;
 import com.project.backend.service.StatisticsService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -26,6 +28,17 @@ public class StatisticsController {
 
     @Autowired
     private StatisticsService statisticsService;
+
+    /**
+     * 获取数据中心聚合统计
+     */
+    @GetMapping("/dashboard")
+    @Operation(summary = "数据中心聚合统计", description = "获取教师端数据中心的筛选项、概览指标与图表数据")
+    public Result<StatisticsDashboardVO> getDashboard(StatisticsDashboardQueryDTO queryDTO) {
+        log.info("获取数据中心统计: {}", queryDTO);
+        StatisticsDashboardVO dashboard = statisticsService.getDashboard(queryDTO);
+        return Result.success(dashboard);
+    }
 
     /**
      * 获取课程考勤统计

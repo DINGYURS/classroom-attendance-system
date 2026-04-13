@@ -52,6 +52,12 @@ const router = createRouter({
           name: 'teacher-rollcall',
           component: () => import('../views/teacher/RollCallSession.vue'),
           meta: { title: '正在点名' }
+        },
+        {
+          path: 'datacenter',
+          name: 'teacher-datacenter',
+          component: () => import('../views/teacher/DataCenter.vue'),
+          meta: { title: '数据中心' }
         }
       ]
     },

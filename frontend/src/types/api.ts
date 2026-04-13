@@ -153,3 +153,74 @@ export interface TeacherStudentTableVO {
   className: string
   avatarUrl: string
 }
+
+export interface StatisticsDashboardQuery {
+  semester?: string
+  courseId?: number
+  adminClass?: string
+  startDate?: string
+  endDate?: string
+  anomalyIncludeLeave?: boolean
+}
+
+export interface StatisticsOptionVO {
+  label: string
+  value: string
+}
+
+export interface StatisticsSummaryVO {
+  totalCourses: number
+  coveredStudents: number
+  totalSessions: number
+  avgAttendanceRate: number
+  totalAnomalies: number
+  faceEntryRate: number
+}
+
+export interface StatisticsStatusItemVO {
+  name: string
+  value: number
+}
+
+export interface StatisticsTrendItemVO {
+  label: string
+  attendanceRate: number
+}
+
+export interface StatisticsCourseRateVO {
+  courseName: string
+  attendanceRate: number
+}
+
+export interface StatisticsClassStatusVO {
+  adminClass: string
+  presentCount: number
+  lateCount: number
+  absentCount: number
+  leaveCount: number
+}
+
+export interface StatisticsStudentAnomalyVO {
+  studentName: string
+  adminClass: string
+  anomalyCount: number
+}
+
+export interface StatisticsCorrectionVO {
+  courseName: string
+  autoCount: number
+  manualCount: number
+}
+
+export interface StatisticsDashboardVO {
+  semesterOptions: StatisticsOptionVO[]
+  courseOptions: StatisticsOptionVO[]
+  classOptions: StatisticsOptionVO[]
+  summaryData: StatisticsSummaryVO
+  statusDistribution: StatisticsStatusItemVO[]
+  attendanceTrend: StatisticsTrendItemVO[]
+  courseAttendanceComparison: StatisticsCourseRateVO[]
+  classStatusComposition: StatisticsClassStatusVO[]
+  studentAnomalyRanking: StatisticsStudentAnomalyVO[]
+  correctionAnalysis: StatisticsCorrectionVO[]
+}

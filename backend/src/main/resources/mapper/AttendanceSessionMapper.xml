@@ -19,6 +19,16 @@
         SELECT * FROM attendance_session WHERE course_id = #{courseId} ORDER BY start_time DESC
     </select>
 
+    <select id="findByCourseIds" resultMap="BaseResultMap">
+        SELECT *
+        FROM attendance_session
+        WHERE course_id IN
+        <foreach collection="courseIds" item="courseId" open="(" separator="," close=")">
+            #{courseId}
+        </foreach>
+        ORDER BY start_time DESC, session_id DESC
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="sessionId">
         INSERT INTO attendance_session (course_id, source_images, total_student, actual_student, start_time)
         VALUES (#{courseId}, #{sourceImages}, #{totalStudent}, #{actualStudent}, #{startTime})

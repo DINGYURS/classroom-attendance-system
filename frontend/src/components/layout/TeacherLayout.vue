@@ -10,7 +10,8 @@ import {
   SwitchButton,
   Postcard,
   Lock,
-  Key
+  Key,
+  DataAnalysis
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
@@ -126,6 +127,10 @@ const activeMenu = computed(() => route.path)
         <el-menu-item index="/teacher/dashboard">
           <el-icon><Monitor /></el-icon>
           <template #title>工作台</template>
+        </el-menu-item>
+        <el-menu-item index="/teacher/datacenter">
+          <el-icon><DataAnalysis /></el-icon>
+          <template #title>数据中心</template>
         </el-menu-item>
         <el-menu-item index="/teacher/course">
           <el-icon><IconMenu /></el-icon>
