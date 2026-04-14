@@ -10,15 +10,20 @@ import com.project.backend.mapper.CourseMapper;
 import com.project.backend.mapper.CourseStudentMapper;
 import com.project.backend.mapper.StudentMapper;
 import com.project.backend.mapper.UserMapper;
+import com.project.backend.pojo.dto.AttendanceArchiveQueryDTO;
 import com.project.backend.pojo.dto.StudentImportDTO;
 import com.project.backend.pojo.entity.Course;
 import com.project.backend.pojo.entity.CourseStudent;
 import com.project.backend.pojo.entity.Student;
 import com.project.backend.pojo.entity.User;
+import com.project.backend.pojo.vo.AttendanceArchiveCourseSummaryExportVO;
+import com.project.backend.pojo.vo.AttendanceArchiveExportVO;
+import com.project.backend.pojo.vo.AttendanceArchiveSessionExportVO;
 import com.project.backend.pojo.vo.AttendanceExportVO;
 import com.project.backend.pojo.vo.StudentStatisticsVO;
 import com.project.backend.pojo.vo.TeacherStudentExportVO;
 import com.project.backend.pojo.vo.TeacherStudentTableVO;
+import com.project.backend.service.AttendanceService;
 import com.project.backend.service.ExcelService;
 import com.project.backend.service.StatisticsService;
 import lombok.extern.slf4j.Slf4j;
@@ -61,6 +66,9 @@ public class ExcelServiceImpl implements ExcelService {
 
     @Autowired
     private StatisticsService statisticsService;
+
+    @Autowired
+    private AttendanceService attendanceService;
 
     @Override
     @Transactional
@@ -153,6 +161,21 @@ public class ExcelServiceImpl implements ExcelService {
         }
 
         return result;
+    }
+
+    @Override
+    public List<AttendanceArchiveExportVO> exportAttendanceArchive(AttendanceArchiveQueryDTO queryDTO) {
+        return attendanceService.listArchiveExportData(queryDTO);
+    }
+
+    @Override
+    public List<AttendanceArchiveCourseSummaryExportVO> exportAttendanceArchiveSummary(AttendanceArchiveQueryDTO queryDTO) {
+        return attendanceService.listArchiveSummaryExportData(queryDTO);
+    }
+
+    @Override
+    public List<AttendanceArchiveSessionExportVO> exportAttendanceSession(Long sessionId) {
+        return attendanceService.listArchiveSessionExportData(sessionId);
     }
 
     private Long validateCurrentTeacher() {
@@ -348,13 +371,11 @@ public class ExcelServiceImpl implements ExcelService {
     }
 
     private String buildImportResult(int successCount, int skipCount) {
-        return new StringBuilder()
-                .append("导入完成：成功 ")
-                .append(successCount)
-                .append(" 人，跳过 ")
-                .append(skipCount)
-                .append(" 人")
-                .toString();
+        return "导入完成：成功 " +
+                successCount +
+                " 人，跳过 " +
+                skipCount +
+                " 人";
     }
 
     private String normalizeKeyword(String keyword) {

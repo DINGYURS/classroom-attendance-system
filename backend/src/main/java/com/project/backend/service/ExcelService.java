@@ -1,6 +1,10 @@
 package com.project.backend.service;
 
+import com.project.backend.pojo.dto.AttendanceArchiveQueryDTO;
 import com.project.backend.pojo.vo.AttendanceExportVO;
+import com.project.backend.pojo.vo.AttendanceArchiveCourseSummaryExportVO;
+import com.project.backend.pojo.vo.AttendanceArchiveExportVO;
+import com.project.backend.pojo.vo.AttendanceArchiveSessionExportVO;
 import com.project.backend.pojo.vo.TeacherStudentExportVO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -34,4 +38,28 @@ public interface ExcelService {
      * @return 考勤数据列表
      */
     List<AttendanceExportVO> exportAttendanceReport(Long courseId);
+
+    /**
+     * 导出考勤档案筛选结果。
+     *
+     * @param queryDTO 查询条件
+     * @return 筛选结果明细
+     */
+    List<AttendanceArchiveExportVO> exportAttendanceArchive(AttendanceArchiveQueryDTO queryDTO);
+
+    /**
+     * 导出考勤档案课程汇总。
+     *
+     * @param queryDTO 查询条件
+     * @return 汇总结果
+     */
+    List<AttendanceArchiveCourseSummaryExportVO> exportAttendanceArchiveSummary(AttendanceArchiveQueryDTO queryDTO);
+
+    /**
+     * 导出单次点名会话详情。
+     *
+     * @param sessionId 会话 ID
+     * @return 单次会话详情
+     */
+    List<AttendanceArchiveSessionExportVO> exportAttendanceSession(Long sessionId);
 }

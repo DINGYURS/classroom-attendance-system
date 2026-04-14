@@ -112,6 +112,76 @@ export interface SessionRecordVO {
   similarityScore?: number | string
 }
 
+export interface AttendanceArchiveQueryDTO {
+  courseId?: number | string
+  adminClass?: string
+  startDate?: string
+  endDate?: string
+  status?: number
+  type?: number
+  keyword?: string
+  currentPage?: number
+  pageSize?: number
+}
+
+export interface AttendanceArchiveOptionsVO {
+  courseOptions: StatisticsOptionVO[]
+  classOptions: StatisticsOptionVO[]
+}
+
+export interface AttendanceArchiveSummaryVO {
+  totalSessions: number
+  expectedTotal: number
+  actualTotal: number
+  absentTotal: number
+  lateTotal: number
+  avgRate: string
+}
+
+export interface AttendanceArchiveSessionVO {
+  id: number
+  courseName: string
+  className: string
+  sessionTime: string
+  expectedCount: number
+  actualCount: number
+  absentCount: number
+  lateCount: number
+  leaveCount: number
+  attendanceRate: string
+  type: string
+}
+
+export interface AttendanceArchivePageVO {
+  summary: AttendanceArchiveSummaryVO
+  pageData: PageResult<AttendanceArchiveSessionVO>
+}
+
+export interface AttendanceArchiveDetailVO {
+  id: number
+  studentId: string
+  studentName: string
+  className: string
+  status: string
+  type: string
+  similarityScore?: string
+}
+
+export interface AttendanceArchiveSessionDetailVO {
+  sessionId: number
+  courseName: string
+  className: string
+  sessionTime: string
+  expectedCount: number
+  actualCount: number
+  absentCount: number
+  lateCount: number
+  leaveCount: number
+  attendanceRate: string
+  type: string
+  detailList: AttendanceArchiveDetailVO[]
+}
+
 // 课程 DTO
 export interface CourseDTO {
   courseId?: number

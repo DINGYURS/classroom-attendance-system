@@ -29,6 +29,130 @@
         ORDER BY start_time DESC, session_id DESC
     </select>
 
+    <sql id="ArchiveSessionFilters">
+        WHERE c.teacher_id = #{teacherId}
+        <if test="query.courseId != null">
+            AND a.course_id = #{query.courseId}
+        </if>
+        <if test="query.startDate != null and query.startDate != ''">
+            AND a.start_time &gt;= CONCAT(#{query.startDate}, ' 00:00:00')
+        </if>
+        <if test="query.endDate != null and query.endDate != ''">
+            AND a.start_time &lt; DATE_ADD(CONCAT(#{query.endDate}, ' 00:00:00'), INTERVAL 1 DAY)
+        </if>
+        <if test="query.type != null and query.type == 1">
+            AND NOT EXISTS (
+                SELECT 1
+                FROM attendance_record type_record
+                WHERE type_record.session_id = a.session_id
+                  AND type_record.update_type = 2
+            )
+        </if>
+        <if test="query.type != null and query.type == 2">
+            AND EXISTS (
+                SELECT 1
+                FROM attendance_record type_record
+                WHERE type_record.session_id = a.session_id
+                  AND type_record.update_type = 2
+            )
+        </if>
+        <if test="(query.adminClass != null and query.adminClass != '')
+                  or query.status != null
+                  or (query.keyword != null and query.keyword != '')">
+            AND EXISTS (
+                SELECT 1
+                FROM attendance_record filter_record
+                LEFT JOIN student filter_student ON filter_record.student_id = filter_student.user_id
+                LEFT JOIN user filter_user ON filter_record.student_id = filter_user.user_id
+                WHERE filter_record.session_id = a.session_id
+                <if test="query.adminClass != null and query.adminClass != ''">
+                    AND filter_student.admin_class = #{query.adminClass}
+                </if>
+                <if test="query.status != null">
+                    AND filter_record.status = #{query.status}
+                </if>
+                <if test="query.keyword != null and query.keyword != ''">
+                    AND (
+                        filter_student.student_number LIKE CONCAT('%', #{query.keyword}, '%')
+                        OR filter_user.real_name LIKE CONCAT('%', #{query.keyword}, '%')
+                    )
+                </if>
+            )
+        </if>
+    </sql>
+
+    <select id="getArchiveSummary" resultType="com.project.backend.pojo.vo.AttendanceArchiveSummaryVO">
+        SELECT
+            COUNT(1) AS totalSessions,
+            COALESCE(SUM(session_stat.expectedCount), 0) AS expectedTotal,
+            COALESCE(SUM(session_stat.actualCount), 0) AS actualTotal,
+            COALESCE(SUM(session_stat.absentCount), 0) AS absentTotal,
+            COALESCE(SUM(session_stat.lateCount), 0) AS lateTotal
+        FROM (
+            SELECT
+                a.session_id,
+                IFNULL(a.total_student, COUNT(ar.record_id)) AS expectedCount,
+                SUM(CASE WHEN ar.status IN (1, 2) THEN 1 ELSE 0 END) AS actualCount,
+                SUM(CASE WHEN ar.status = 0 THEN 1 ELSE 0 END) AS absentCount,
+                SUM(CASE WHEN ar.status = 2 THEN 1 ELSE 0 END) AS lateCount
+            FROM attendance_session a
+            INNER JOIN course c ON a.course_id = c.course_id
+            LEFT JOIN attendance_record ar ON a.session_id = ar.session_id
+            <include refid="ArchiveSessionFilters"/>
+            GROUP BY a.session_id, a.total_student
+        ) session_stat
+    </select>
+
+    <select id="pageArchiveSessionIds" resultType="java.lang.Long">
+        SELECT a.session_id
+        FROM attendance_session a
+        INNER JOIN course c ON a.course_id = c.course_id
+        <include refid="ArchiveSessionFilters"/>
+        ORDER BY a.start_time DESC, a.session_id DESC
+    </select>
+
+    <select id="listArchiveSessionsByIds" resultType="com.project.backend.pojo.vo.AttendanceArchiveSessionVO">
+        SELECT
+            a.session_id AS id,
+            c.course_name AS courseName,
+            COALESCE(
+                NULLIF(GROUP_CONCAT(DISTINCT NULLIF(stu.admin_class, '') ORDER BY stu.admin_class SEPARATOR ' / '), ''),
+                '未分班'
+            ) AS className,
+            DATE_FORMAT(a.start_time, '%Y-%m-%d %H:%i:%s') AS sessionTime,
+            IFNULL(a.total_student, COUNT(ar.record_id)) AS expectedCount,
+            SUM(CASE WHEN ar.status IN (1, 2) THEN 1 ELSE 0 END) AS actualCount,
+            SUM(CASE WHEN ar.status = 0 THEN 1 ELSE 0 END) AS absentCount,
+            SUM(CASE WHEN ar.status = 2 THEN 1 ELSE 0 END) AS lateCount,
+            SUM(CASE WHEN ar.status = 3 THEN 1 ELSE 0 END) AS leaveCount,
+            CONCAT(
+                CAST(
+                    ROUND(
+                        IFNULL(
+                            SUM(CASE WHEN ar.status IN (1, 2) THEN 1 ELSE 0 END) * 100.0 /
+                            NULLIF(IFNULL(a.total_student, COUNT(ar.record_id)), 0),
+                            0
+                        ),
+                        1
+                    ) AS CHAR
+                ),
+                '%'
+            ) AS attendanceRate,
+            CASE
+                WHEN MAX(CASE WHEN ar.update_type = 2 THEN 1 ELSE 0 END) = 1 THEN '人工修正'
+                ELSE '课堂识别'
+            END AS type
+        FROM attendance_session a
+        INNER JOIN course c ON a.course_id = c.course_id
+        LEFT JOIN attendance_record ar ON a.session_id = ar.session_id
+        LEFT JOIN student stu ON ar.student_id = stu.user_id
+        WHERE a.session_id IN
+        <foreach collection="sessionIds" item="sessionId" open="(" separator="," close=")">
+            #{sessionId}
+        </foreach>
+        GROUP BY a.session_id, c.course_name, a.start_time, a.total_student
+    </select>
+
     <insert id="insert" useGeneratedKeys="true" keyProperty="sessionId">
         INSERT INTO attendance_session (course_id, source_images, total_student, actual_student, start_time)
         VALUES (#{courseId}, #{sourceImages}, #{totalStudent}, #{actualStudent}, #{startTime})

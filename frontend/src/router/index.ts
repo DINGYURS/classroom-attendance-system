@@ -48,6 +48,12 @@ const router = createRouter({
           meta: { title: '学生管理' }
         },
         {
+          path: 'attendance-archive',
+          name: 'teacher-attendance-archive',
+          component: () => import('../views/teacher/AttendanceArchive.vue'),
+          meta: { title: '考勤档案' }
+        },
+        {
           path: 'rollcall/:id',
           name: 'teacher-rollcall',
           component: () => import('../views/teacher/RollCallSession.vue'),

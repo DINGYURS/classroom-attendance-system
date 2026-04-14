@@ -1,5 +1,11 @@
+import axios from 'axios'
 import request from '@/utils/request'
+import { useAuthStore } from '@/stores/auth'
 import type {
+  AttendanceArchiveOptionsVO,
+  AttendanceArchivePageVO,
+  AttendanceArchiveQueryDTO,
+  AttendanceArchiveSessionDetailVO,
   AttendanceSessionVO,
   AttendanceStartDTO,
   AttendanceUpdateDTO,
@@ -42,4 +48,51 @@ export function updateAttendanceStatus(data: AttendanceUpdateDTO) {
 
 export function endAttendance(sessionId: number) {
   return request.post<any, Result<void>>(`/attendance/end/${sessionId}`)
+}
+
+export function getAttendanceArchiveOptions(courseId?: number | string) {
+  return request.get<any, Result<AttendanceArchiveOptionsVO>>('/attendance/archive/options', {
+    params: {
+      courseId
+    },
+    timeout: 30000
+  })
+}
+
+export function getAttendanceArchivePage(params: AttendanceArchiveQueryDTO) {
+  return request.get<any, Result<AttendanceArchivePageVO>>('/attendance/archive/page', {
+    params,
+    timeout: 30000
+  })
+}
+
+export function getAttendanceArchiveSessionDetail(sessionId: number) {
+  return request.get<any, Result<AttendanceArchiveSessionDetailVO>>(`/attendance/archive/session/${sessionId}`, {
+    timeout: 30000
+  })
+}
+
+function downloadExcel(url: string, params?: object) {
+  const authStore = useAuthStore()
+  return axios.get(url, {
+    baseURL: '/api',
+    params,
+    responseType: 'blob',
+    timeout: 30000,
+    headers: {
+      token: authStore.userInfo.token
+    }
+  })
+}
+
+export function exportAttendanceArchive(params: AttendanceArchiveQueryDTO) {
+  return downloadExcel('/excel/export/attendance/archive', params)
+}
+
+export function exportAttendanceArchiveSummary(params: AttendanceArchiveQueryDTO) {
+  return downloadExcel('/excel/export/attendance/archive/summary', params)
+}
+
+export function exportAttendanceSession(sessionId: number) {
+  return downloadExcel(`/excel/export/attendance/session/${sessionId}`)
 }

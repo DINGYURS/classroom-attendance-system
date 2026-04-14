@@ -2,7 +2,14 @@ package com.project.backend.service;
 
 import com.project.backend.pojo.dto.AttendanceStartDTO;
 import com.project.backend.pojo.dto.AttendanceUpdateDTO;
+import com.project.backend.pojo.dto.AttendanceArchiveQueryDTO;
 import com.project.backend.pojo.dto.FaceRecognitionDTO;
+import com.project.backend.pojo.vo.AttendanceArchiveCourseSummaryExportVO;
+import com.project.backend.pojo.vo.AttendanceArchiveExportVO;
+import com.project.backend.pojo.vo.AttendanceArchiveOptionsVO;
+import com.project.backend.pojo.vo.AttendanceArchivePageVO;
+import com.project.backend.pojo.vo.AttendanceArchiveSessionDetailVO;
+import com.project.backend.pojo.vo.AttendanceArchiveSessionExportVO;
 import com.project.backend.pojo.vo.AttendanceSessionVO;
 import com.project.backend.pojo.vo.RecognitionResultVO;
 import com.project.backend.pojo.vo.SessionRecordVO;
@@ -67,4 +74,52 @@ public interface AttendanceService {
      * @param updateDTO 更新请求
      */
     void updateAttendanceStatus(AttendanceUpdateDTO updateDTO);
+
+    /**
+     * 获取考勤档案筛选项。
+     *
+     * @param courseId 已选课程 ID，可为空
+     * @return 筛选项
+     */
+    AttendanceArchiveOptionsVO getArchiveOptions(Long courseId);
+
+    /**
+     * 查询考勤档案分页数据。
+     *
+     * @param queryDTO 查询条件
+     * @return 考勤档案分页结果
+     */
+    AttendanceArchivePageVO getArchivePage(AttendanceArchiveQueryDTO queryDTO);
+
+    /**
+     * 查询单次考勤会话详情。
+     *
+     * @param sessionId 会话 ID
+     * @return 会话详情
+     */
+    AttendanceArchiveSessionDetailVO getArchiveSessionDetail(Long sessionId);
+
+    /**
+     * 导出当前筛选结果明细。
+     *
+     * @param queryDTO 查询条件
+     * @return 明细数据
+     */
+    List<AttendanceArchiveExportVO> listArchiveExportData(AttendanceArchiveQueryDTO queryDTO);
+
+    /**
+     * 导出课程汇总结果。
+     *
+     * @param queryDTO 查询条件
+     * @return 汇总数据
+     */
+    List<AttendanceArchiveCourseSummaryExportVO> listArchiveSummaryExportData(AttendanceArchiveQueryDTO queryDTO);
+
+    /**
+     * 导出单次会话详情。
+     *
+     * @param sessionId 会话 ID
+     * @return 单次会话明细
+     */
+    List<AttendanceArchiveSessionExportVO> listArchiveSessionExportData(Long sessionId);
 }

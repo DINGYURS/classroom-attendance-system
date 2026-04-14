@@ -1,8 +1,12 @@
 package com.project.backend.controller;
 
 import com.alibaba.excel.EasyExcel;
+import com.project.backend.pojo.dto.AttendanceArchiveQueryDTO;
 import com.project.backend.pojo.result.Result;
 import com.project.backend.pojo.vo.AttendanceExportVO;
+import com.project.backend.pojo.vo.AttendanceArchiveCourseSummaryExportVO;
+import com.project.backend.pojo.vo.AttendanceArchiveExportVO;
+import com.project.backend.pojo.vo.AttendanceArchiveSessionExportVO;
 import com.project.backend.pojo.vo.TeacherStudentExportVO;
 import com.project.backend.service.ExcelService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -86,6 +90,69 @@ public class ExcelController {
 
         EasyExcel.write(response.getOutputStream(), AttendanceExportVO.class)
                 .sheet("考勤统计")
+                .doWrite(data);
+    }
+
+    /**
+     * 导出考勤档案筛选结果。
+     */
+    @GetMapping("/export/attendance/archive")
+    @Operation(summary = "导出考勤档案筛选结果", description = "导出教师端考勤档案页当前筛选条件下的明细结果")
+    public void exportAttendanceArchive(AttendanceArchiveQueryDTO queryDTO,
+                                        HttpServletResponse response) throws IOException {
+        log.info("导出考勤档案筛选结果: {}", queryDTO);
+
+        List<AttendanceArchiveExportVO> data = excelService.exportAttendanceArchive(queryDTO);
+
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        String fileName = URLEncoder.encode("考勤档案明细_" + LocalDate.now(), StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+
+        EasyExcel.write(response.getOutputStream(), AttendanceArchiveExportVO.class)
+                .sheet("考勤档案明细")
+                .doWrite(data);
+    }
+
+    /**
+     * 导出考勤档案课程汇总。
+     */
+    @GetMapping("/export/attendance/archive/summary")
+    @Operation(summary = "导出考勤档案课程汇总", description = "导出教师端考勤档案页当前筛选条件下的课程汇总报表")
+    public void exportAttendanceArchiveSummary(AttendanceArchiveQueryDTO queryDTO,
+                                               HttpServletResponse response) throws IOException {
+        log.info("导出考勤档案课程汇总: {}", queryDTO);
+
+        List<AttendanceArchiveCourseSummaryExportVO> data = excelService.exportAttendanceArchiveSummary(queryDTO);
+
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        String fileName = URLEncoder.encode("考勤档案课程汇总_" + LocalDate.now(), StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+
+        EasyExcel.write(response.getOutputStream(), AttendanceArchiveCourseSummaryExportVO.class)
+                .sheet("课程汇总")
+                .doWrite(data);
+    }
+
+    /**
+     * 导出单次点名会话详情。
+     */
+    @GetMapping("/export/attendance/session/{sessionId}")
+    @Operation(summary = "导出单次点名会话详情", description = "导出教师端考勤档案页抽屉中的单次点名详情")
+    public void exportAttendanceSession(@PathVariable Long sessionId,
+                                        HttpServletResponse response) throws IOException {
+        log.info("导出单次点名会话详情: sessionId={}", sessionId);
+
+        List<AttendanceArchiveSessionExportVO> data = excelService.exportAttendanceSession(sessionId);
+
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        String fileName = URLEncoder.encode("单次点名详情_" + sessionId, StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+
+        EasyExcel.write(response.getOutputStream(), AttendanceArchiveSessionExportVO.class)
+                .sheet("单次点名详情")
                 .doWrite(data);
     }
 }
