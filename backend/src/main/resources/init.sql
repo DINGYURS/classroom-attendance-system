@@ -138,3 +138,52 @@ create table course_student
 )
     comment '课程学生关联表';
 
+create table attendance_notice
+(
+    notice_id       bigint auto_increment
+        primary key,
+    teacher_id      bigint                             not null comment '发送教师ID',
+    student_id      bigint                             not null comment '接收学生ID',
+    course_id       bigint                             null comment '相关课程ID，为空表示综合提醒',
+    notice_type     tinyint  default 1                 not null comment '通知类型: 1-缺勤提醒',
+    absent_count    int      default 0                 not null comment '发送时累计缺勤次数快照',
+    title           varchar(128)                       not null comment '通知标题',
+    content         varchar(512)                       not null comment '通知内容',
+    send_status     tinyint  default 1                 not null comment '发送状态: 0-待发送, 1-已发送, 2-发送失败',
+    read_status     tinyint  default 0                 not null comment '阅读状态: 0-未读, 1-已读',
+    send_time       datetime default CURRENT_TIMESTAMP null comment '发送时间',
+    read_time       datetime                           null comment '阅读时间',
+    create_time     datetime default CURRENT_TIMESTAMP null comment '创建时间',
+    constraint fk_notice_teacher
+        foreign key (teacher_id) references teacher (user_id)
+            on delete cascade,
+    constraint fk_notice_student
+        foreign key (student_id) references student (user_id)
+            on delete cascade,
+    constraint fk_notice_course
+        foreign key (course_id) references course (course_id)
+            on delete set null
+)
+    comment '考勤提醒通知记录表';
+
+create index idx_session_course_time
+    on attendance_session (course_id, start_time);
+
+create index idx_record_student_status
+    on attendance_record (student_id, status);
+
+create index idx_record_student_session
+    on attendance_record (student_id, session_id);
+
+create index idx_cs_student
+    on course_student (student_id);
+
+create index idx_notice_teacher_send_time
+    on attendance_notice (teacher_id, send_time);
+
+create index idx_notice_student_read
+    on attendance_notice (student_id, read_status, send_time);
+
+create index idx_notice_course
+    on attendance_notice (course_id, send_time);
+

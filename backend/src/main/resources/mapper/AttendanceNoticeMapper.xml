@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.project.backend.mapper.AttendanceNoticeMapper">
+
+    <resultMap id="BaseResultMap" type="com.project.backend.pojo.entity.AttendanceNotice">
+        <id column="notice_id" property="noticeId"/>
+        <result column="teacher_id" property="teacherId"/>
+        <result column="student_id" property="studentId"/>
+        <result column="course_id" property="courseId"/>
+        <result column="notice_type" property="noticeType"/>
+        <result column="absent_count" property="absentCount"/>
+        <result column="title" property="title"/>
+        <result column="content" property="content"/>
+        <result column="send_status" property="sendStatus"/>
+        <result column="read_status" property="readStatus"/>
+        <result column="send_time" property="sendTime"/>
+        <result column="read_time" property="readTime"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT *
+        FROM attendance_notice
+        WHERE notice_id = #{noticeId}
+    </select>
+
+    <select id="findByStudentId" resultType="com.project.backend.pojo.vo.StudentNoticeVO">
+        SELECT
+            n.notice_id AS noticeId,
+            IFNULL(c.course_name, '综合提醒') AS courseName,
+            n.title AS title,
+            n.content AS content,
+            n.absent_count AS absentCount,
+            DATE_FORMAT(n.send_time, '%Y-%m-%d %H:%i:%s') AS sendTime,
+            CASE WHEN n.read_status = 1 THEN TRUE ELSE FALSE END AS isRead,
+            DATE_FORMAT(n.read_time, '%Y-%m-%d %H:%i:%s') AS readTime
+        FROM attendance_notice n
+        LEFT JOIN course c ON n.course_id = c.course_id
+        WHERE n.student_id = #{studentId}
+          AND n.send_status = 1
+        ORDER BY n.send_time DESC, n.notice_id DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="noticeId">
+        INSERT INTO attendance_notice (
+            teacher_id,
+            student_id,
+            course_id,
+            notice_type,
+            absent_count,
+            title,
+            content,
+            send_status,
+            read_status,
+            send_time,
+            create_time
+        )
+        VALUES (
+            #{teacherId},
+            #{studentId},
+            #{courseId},
+            #{noticeType},
+            #{absentCount},
+            #{title},
+            #{content},
+            #{sendStatus},
+            #{readStatus},
+            #{sendTime},
+            #{createTime}
+        )
+    </insert>
+
+    <update id="markRead">
+        UPDATE attendance_notice
+        SET read_status = 1,
+            read_time = NOW()
+        WHERE notice_id = #{noticeId}
+          AND read_status = 0
+    </update>
+</mapper>

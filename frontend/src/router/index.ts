@@ -64,6 +64,12 @@ const router = createRouter({
           name: 'teacher-datacenter',
           component: () => import('../views/teacher/DataCenter.vue'),
           meta: { title: '数据中心' }
+        },
+        {
+          path: 'warningcenter',
+          name: 'teacher-warningcenter',
+          component: () => import('../views/teacher/WarningCenter.vue'),
+          meta: { title: '预警中心' }
         }
       ]
     },

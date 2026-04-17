@@ -346,3 +346,99 @@ export interface StatisticsDashboardVO {
   studentAnomalyRanking: StatisticsStudentAnomalyVO[]
   correctionAnalysis: StatisticsCorrectionVO[]
 }
+
+export interface WarningQueryDTO {
+  courseId?: number
+  adminClass?: string
+  startDate?: string
+  endDate?: string
+  keyword?: string
+  currentPage?: number
+  pageSize?: number
+}
+
+export interface WarningSummaryVO {
+  highAbsenceCount: number
+  todayNotifyCount: number
+  unreadNotifyCount: number
+  maxAbsenceCount: number
+}
+
+export interface WarningRankingVO {
+  courseId: number
+  userId: number
+  studentId: string
+  studentName: string
+  className: string
+  courseName: string
+  absenceCount: number
+  lastAbsenceTime?: string
+  lastNotifyTime?: string
+  notifyCount: number
+  hasUnread: boolean
+}
+
+export interface WarningTimelineVO {
+  id: number
+  date: string
+  course: string
+  status: number
+  statusText: string
+  statusType: 'success' | 'warning' | 'danger' | 'info'
+}
+
+export interface WarningDetailVO {
+  userId: number
+  studentId: string
+  studentName: string
+  className: string
+  courseId: number
+  courseName: string
+  absenceCount: number
+  lastAbsenceTime?: string
+  lastNotifyTime?: string
+  notifyCount: number
+  hasUnread: boolean
+  timeline: WarningTimelineVO[]
+}
+
+export interface WarningNoticeVO {
+  id: number
+  studentName: string
+  studentId: string
+  courseId?: number
+  courseName: string
+  absenceSnapshot: number
+  title: string
+  sentTime: string
+  isRead: boolean
+}
+
+export interface WarningOptionsVO {
+  courseOptions: StatisticsOptionVO[]
+  classOptions: StatisticsOptionVO[]
+}
+
+export interface WarningCenterPageVO {
+  summary: WarningSummaryVO
+  pageData: PageResult<WarningRankingVO>
+}
+
+export interface WarningNoticeSendDTO {
+  studentId: number
+  courseId: number
+  absentCount: number
+  title: string
+  content: string
+}
+
+export interface StudentNoticeVO {
+  noticeId: number
+  courseName: string
+  title: string
+  content: string
+  absentCount: number
+  sendTime: string
+  isRead: boolean
+  readTime?: string
+}

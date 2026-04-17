@@ -2,6 +2,7 @@ package com.project.backend.controller;
 
 import com.project.backend.pojo.result.Result;
 import com.project.backend.pojo.vo.AttendanceRecordVO;
+import com.project.backend.pojo.vo.StudentNoticeVO;
 import com.project.backend.pojo.vo.StudentVO;
 import com.project.backend.service.StudentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -65,6 +66,26 @@ public class StudentController {
     public Result<List<AttendanceRecordVO>> getAttendanceRecords() {
         List<AttendanceRecordVO> records = studentService.getAttendanceRecords();
         return Result.success(records);
+    }
+
+    /**
+     * 获取学生端通知列表
+     */
+    @GetMapping("/notices")
+    @Operation(summary = "获取学生通知", description = "获取当前学生收到的考勤提醒通知")
+    public Result<List<StudentNoticeVO>> getNoticeList() {
+        return Result.success(studentService.getNoticeList());
+    }
+
+    /**
+     * 标记通知为已读
+     */
+    @PutMapping("/notice/{noticeId}/read")
+    @Operation(summary = "标记通知已读", description = "学生将某条通知标记为已读")
+    public Result<Void> markNoticeRead(@PathVariable Long noticeId) {
+        log.info("学生标记通知已读: noticeId={}", noticeId);
+        studentService.markNoticeRead(noticeId);
+        return Result.success();
     }
 }
 

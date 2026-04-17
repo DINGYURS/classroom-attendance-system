@@ -7,6 +7,7 @@ import com.project.backend.constant.RoleConstants;
 import com.project.backend.context.BaseContext;
 import com.project.backend.exception.BusinessException;
 import com.project.backend.mapper.AttendanceRecordMapper;
+import com.project.backend.mapper.AttendanceNoticeMapper;
 import com.project.backend.mapper.CourseMapper;
 import com.project.backend.mapper.CourseStudentMapper;
 import com.project.backend.mapper.StudentMapper;
@@ -17,6 +18,7 @@ import com.project.backend.pojo.entity.Student;
 import com.project.backend.pojo.entity.User;
 import com.project.backend.pojo.result.PageResult;
 import com.project.backend.pojo.vo.AttendanceRecordVO;
+import com.project.backend.pojo.vo.StudentNoticeVO;
 import com.project.backend.pojo.vo.StudentVO;
 import com.project.backend.pojo.vo.TeacherStudentTableVO;
 import com.project.backend.service.MinioService;
@@ -48,6 +50,9 @@ public class StudentServiceImpl implements StudentService {
 
     @Autowired
     private AttendanceRecordMapper attendanceRecordMapper;
+
+    @Autowired
+    private AttendanceNoticeMapper attendanceNoticeMapper;
 
     @Autowired
     private CourseMapper courseMapper;
@@ -178,6 +183,42 @@ public class StudentServiceImpl implements StudentService {
                 .total(page.getTotal())
                 .records(records)
                 .build();
+    }
+
+    @Override
+    public List<StudentNoticeVO> getNoticeList() {
+        Long studentId = BaseContext.getCurrentId();
+        User currentUser = userMapper.findById(studentId);
+        if (currentUser == null) {
+            throw new BusinessException(MessageConstants.USER_NOT_FOUND);
+        }
+        if (!RoleConstants.ROLE_STUDENT.equals(currentUser.getRole())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+        return attendanceNoticeMapper.findByStudentId(studentId);
+    }
+
+    @Override
+    public void markNoticeRead(Long noticeId) {
+        if (noticeId == null) {
+            throw new BusinessException(MessageConstants.PARAM_ERROR);
+        }
+
+        Long studentId = BaseContext.getCurrentId();
+        User currentUser = userMapper.findById(studentId);
+        if (currentUser == null) {
+            throw new BusinessException(MessageConstants.USER_NOT_FOUND);
+        }
+        if (!RoleConstants.ROLE_STUDENT.equals(currentUser.getRole())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+
+        var notice = attendanceNoticeMapper.findById(noticeId);
+        if (notice == null || !studentId.equals(notice.getStudentId())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+
+        attendanceNoticeMapper.markRead(noticeId);
     }
 
     /**

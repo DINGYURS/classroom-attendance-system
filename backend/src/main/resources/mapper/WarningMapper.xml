@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.project.backend.mapper.WarningMapper">
+
+    <sql id="WarningRankingWhere">
+        WHERE c.teacher_id = #{teacherId}
+          AND ar.status = 0
+        <if test="query != null and query.courseId != null">
+            AND c.course_id = #{query.courseId}
+        </if>
+        <if test="query != null and query.adminClass != null and query.adminClass != ''">
+            AND stu.admin_class = #{query.adminClass}
+        </if>
+        <if test="query != null and query.keyword != null and query.keyword != ''">
+            AND (
+                stu.student_number LIKE CONCAT('%', #{query.keyword}, '%')
+                OR usr.real_name LIKE CONCAT('%', #{query.keyword}, '%')
+            )
+        </if>
+        <if test="query != null and query.startDate != null and query.startDate != ''">
+            AND sess.start_time <![CDATA[>=]]> CONCAT(#{query.startDate}, ' 00:00:00')
+        </if>
+        <if test="query != null and query.endDate != null and query.endDate != ''">
+            AND sess.start_time <![CDATA[<=]]> CONCAT(#{query.endDate}, ' 23:59:59')
+        </if>
+    </sql>
+
+    <sql id="NoticeHistoryWhere">
+        WHERE n.teacher_id = #{teacherId}
+          AND n.send_status = 1
+        <if test="query != null and query.courseId != null">
+            AND n.course_id = #{query.courseId}
+        </if>
+        <if test="query != null and query.adminClass != null and query.adminClass != ''">
+            AND stu.admin_class = #{query.adminClass}
+        </if>
+        <if test="query != null and query.keyword != null and query.keyword != ''">
+            AND (
+                stu.student_number LIKE CONCAT('%', #{query.keyword}, '%')
+                OR usr.real_name LIKE CONCAT('%', #{query.keyword}, '%')
+            )
+        </if>
+        <if test="query != null and query.startDate != null and query.startDate != ''">
+            AND n.send_time <![CDATA[>=]]> CONCAT(#{query.startDate}, ' 00:00:00')
+        </if>
+        <if test="query != null and query.endDate != null and query.endDate != ''">
+            AND n.send_time <![CDATA[<=]]> CONCAT(#{query.endDate}, ' 23:59:59')
+        </if>
+    </sql>
+
+    <select id="listWarningRankings" resultType="com.project.backend.pojo.vo.WarningRankingVO">
+        SELECT
+            c.course_id AS courseId,
+            stu.user_id AS userId,
+            stu.student_number AS studentId,
+            usr.real_name AS studentName,
+            IFNULL(stu.admin_class, '') AS className,
+            c.course_name AS courseName,
+            COUNT(ar.record_id) AS absenceCount,
+            DATE_FORMAT(MAX(sess.start_time), '%Y-%m-%d %H:%i:%s') AS lastAbsenceTime,
+            DATE_FORMAT(notice_stat.lastNotifyTime, '%Y-%m-%d %H:%i:%s') AS lastNotifyTime,
+            IFNULL(notice_stat.notifyCount, 0) AS notifyCount,
+            CASE WHEN IFNULL(notice_stat.unreadCount, 0) > 0 THEN TRUE ELSE FALSE END AS hasUnread
+        FROM attendance_record ar
+        INNER JOIN attendance_session sess ON ar.session_id = sess.session_id
+        INNER JOIN course c ON sess.course_id = c.course_id
+        INNER JOIN student stu ON ar.student_id = stu.user_id
+        INNER JOIN user usr ON stu.user_id = usr.user_id
+        LEFT JOIN (
+            SELECT
+                teacher_id,
+                student_id,
+                course_id,
+                COUNT(*) AS notifyCount,
+                MAX(send_time) AS lastNotifyTime,
+                SUM(CASE WHEN read_status = 0 THEN 1 ELSE 0 END) AS unreadCount
+            FROM attendance_notice
+            WHERE teacher_id = #{teacherId}
+              AND send_status = 1
+            GROUP BY teacher_id, student_id, course_id
+        ) notice_stat
+            ON notice_stat.teacher_id = c.teacher_id
+           AND notice_stat.student_id = ar.student_id
+           AND notice_stat.course_id = c.course_id
+        <include refid="WarningRankingWhere"/>
+        GROUP BY
+        c.course_id,
+        stu.user_id,
+        stu.student_number,
+        usr.real_name,
+        stu.admin_class,
+        c.course_name,
+        notice_stat.lastNotifyTime,
+        notice_stat.notifyCount,
+        notice_stat.unreadCount
+        ORDER BY COUNT(ar.record_id) DESC, MAX(sess.start_time) DESC, c.course_id DESC, stu.student_number
+    </select>
+
+    <select id="getWarningRankingDetail" resultType="com.project.backend.pojo.vo.WarningRankingVO">
+        SELECT
+            c.course_id AS courseId,
+            stu.user_id AS userId,
+            stu.student_number AS studentId,
+            usr.real_name AS studentName,
+            IFNULL(stu.admin_class, '') AS className,
+            c.course_name AS courseName,
+            COUNT(ar.record_id) AS absenceCount,
+            DATE_FORMAT(MAX(sess.start_time), '%Y-%m-%d %H:%i:%s') AS lastAbsenceTime,
+            DATE_FORMAT(notice_stat.lastNotifyTime, '%Y-%m-%d %H:%i:%s') AS lastNotifyTime,
+            IFNULL(notice_stat.notifyCount, 0) AS notifyCount,
+            CASE WHEN IFNULL(notice_stat.unreadCount, 0) > 0 THEN TRUE ELSE FALSE END AS hasUnread
+        FROM attendance_record ar
+        INNER JOIN attendance_session sess ON ar.session_id = sess.session_id
+        INNER JOIN course c ON sess.course_id = c.course_id
+        INNER JOIN student stu ON ar.student_id = stu.user_id
+        INNER JOIN user usr ON stu.user_id = usr.user_id
+        LEFT JOIN (
+            SELECT
+                teacher_id,
+                student_id,
+                course_id,
+                COUNT(*) AS notifyCount,
+                MAX(send_time) AS lastNotifyTime,
+                SUM(CASE WHEN read_status = 0 THEN 1 ELSE 0 END) AS unreadCount
+            FROM attendance_notice
+            WHERE teacher_id = #{teacherId}
+              AND send_status = 1
+            GROUP BY teacher_id, student_id, course_id
+        ) notice_stat
+            ON notice_stat.teacher_id = c.teacher_id
+           AND notice_stat.student_id = ar.student_id
+           AND notice_stat.course_id = c.course_id
+        WHERE c.teacher_id = #{teacherId}
+          AND c.course_id = #{courseId}
+          AND ar.student_id = #{studentId}
+          AND ar.status = 0
+        <if test="query != null and query.startDate != null and query.startDate != ''">
+            AND sess.start_time <![CDATA[>=]]> CONCAT(#{query.startDate}, ' 00:00:00')
+        </if>
+        <if test="query != null and query.endDate != null and query.endDate != ''">
+            AND sess.start_time <![CDATA[<=]]> CONCAT(#{query.endDate}, ' 23:59:59')
+        </if>
+        GROUP BY
+            c.course_id,
+            stu.user_id,
+            stu.student_number,
+            usr.real_name,
+            stu.admin_class,
+            c.course_name,
+            notice_stat.lastNotifyTime,
+            notice_stat.notifyCount,
+            notice_stat.unreadCount
+    </select>
+
+    <select id="listWarningTimelines" resultType="com.project.backend.pojo.vo.WarningTimelineVO">
+        SELECT
+            ar.record_id AS id,
+            DATE_FORMAT(sess.start_time, '%Y-%m-%d %H:%i:%s') AS date,
+            c.course_name AS course,
+            ar.status AS status,
+            CASE
+                WHEN ar.status = 0 THEN '缺勤'
+                WHEN ar.status = 1 THEN '已到'
+                WHEN ar.status = 2 THEN '迟到'
+                WHEN ar.status = 3 THEN '请假'
+                ELSE '未知'
+            END AS statusText,
+            CASE
+                WHEN ar.status = 0 THEN 'danger'
+                WHEN ar.status = 1 THEN 'success'
+                WHEN ar.status = 2 THEN 'warning'
+                WHEN ar.status = 3 THEN 'info'
+                ELSE 'info'
+            END AS statusType
+        FROM attendance_record ar
+        INNER JOIN attendance_session sess ON ar.session_id = sess.session_id
+        INNER JOIN course c ON sess.course_id = c.course_id
+        WHERE c.teacher_id = #{teacherId}
+          AND c.course_id = #{courseId}
+          AND ar.student_id = #{studentId}
+        <if test="query != null and query.startDate != null and query.startDate != ''">
+            AND sess.start_time <![CDATA[>=]]> CONCAT(#{query.startDate}, ' 00:00:00')
+        </if>
+        <if test="query != null and query.endDate != null and query.endDate != ''">
+            AND sess.start_time <![CDATA[<=]]> CONCAT(#{query.endDate}, ' 23:59:59')
+        </if>
+        ORDER BY sess.start_time DESC, ar.record_id DESC
+    </select>
+
+    <select id="listNoticeHistory" resultType="com.project.backend.pojo.vo.WarningNoticeVO">
+        SELECT
+            n.notice_id AS id,
+            usr.real_name AS studentName,
+            stu.student_number AS studentId,
+            n.course_id AS courseId,
+            IFNULL(c.course_name, '综合提醒') AS courseName,
+            n.absent_count AS absenceSnapshot,
+            n.title AS title,
+            DATE_FORMAT(n.send_time, '%Y-%m-%d %H:%i:%s') AS sentTime,
+            CASE WHEN n.read_status = 1 THEN TRUE ELSE FALSE END AS isRead
+        FROM attendance_notice n
+        INNER JOIN student stu ON n.student_id = stu.user_id
+        INNER JOIN user usr ON stu.user_id = usr.user_id
+        LEFT JOIN course c ON n.course_id = c.course_id
+        <include refid="NoticeHistoryWhere"/>
+        ORDER BY n.send_time DESC, n.notice_id DESC
+    </select>
+</mapper>

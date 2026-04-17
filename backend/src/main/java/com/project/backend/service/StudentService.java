@@ -4,6 +4,7 @@ import com.project.backend.pojo.dto.FaceFeatureDTO;
 import com.project.backend.pojo.dto.TeacherStudentPageQueryDTO;
 import com.project.backend.pojo.result.PageResult;
 import com.project.backend.pojo.vo.AttendanceRecordVO;
+import com.project.backend.pojo.vo.StudentNoticeVO;
 import com.project.backend.pojo.vo.StudentVO;
 import com.project.backend.pojo.vo.TeacherStudentTableVO;
 import org.springframework.web.multipart.MultipartFile;
@@ -44,4 +45,14 @@ public interface StudentService {
      * 分页查询教师端学生管理表格数据。
      */
     PageResult<TeacherStudentTableVO> getTeacherStudentPage(TeacherStudentPageQueryDTO queryDTO);
+
+    /**
+     * 获取学生端通知列表。
+     */
+    List<StudentNoticeVO> getNoticeList();
+
+    /**
+     * 标记通知为已读。
+     */
+    void markNoticeRead(Long noticeId);
 }

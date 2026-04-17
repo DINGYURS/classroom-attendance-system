@@ -49,5 +49,13 @@ public interface StudentMapper {
      * @return 行政班级列表
      */
     List<String> findAdminClassesByCourseId(@Param("courseId") Long courseId);
+
+    /**
+     * 查询教师名下课程涉及的不重复行政班级列表
+     *
+     * @param teacherId 教师 ID
+     * @return 行政班级列表
+     */
+    List<String> findAdminClassesByTeacherId(@Param("teacherId") Long teacherId);
 }
 
