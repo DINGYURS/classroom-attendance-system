@@ -3,6 +3,8 @@ package com.project.backend.service;
 import com.project.backend.pojo.dto.AttendanceStartDTO;
 import com.project.backend.pojo.dto.AttendanceUpdateDTO;
 import com.project.backend.pojo.dto.AttendanceArchiveQueryDTO;
+import com.project.backend.pojo.dto.AttendanceDetectionAssignDTO;
+import com.project.backend.pojo.dto.AttendanceDetectionIgnoreDTO;
 import com.project.backend.pojo.dto.FaceRecognitionDTO;
 import com.project.backend.pojo.vo.AttendanceArchiveCourseSummaryExportVO;
 import com.project.backend.pojo.vo.AttendanceArchiveExportVO;
@@ -10,6 +12,7 @@ import com.project.backend.pojo.vo.AttendanceArchiveOptionsVO;
 import com.project.backend.pojo.vo.AttendanceArchivePageVO;
 import com.project.backend.pojo.vo.AttendanceArchiveSessionDetailVO;
 import com.project.backend.pojo.vo.AttendanceArchiveSessionExportVO;
+import com.project.backend.pojo.vo.AttendanceSessionAnnotationVO;
 import com.project.backend.pojo.vo.AttendanceSessionVO;
 import com.project.backend.pojo.vo.RecognitionResultVO;
 import com.project.backend.pojo.vo.SessionRecordVO;
@@ -51,6 +54,30 @@ public interface AttendanceService {
      * @return 会话信息
      */
     AttendanceSessionVO getSessionDetail(Long sessionId);
+
+    /**
+     * 获取会话标注结果。
+     *
+     * @param sessionId 会话 ID
+     * @return 标注结果
+     */
+    AttendanceSessionAnnotationVO getSessionAnnotations(Long sessionId);
+
+    /**
+     * 忽略未匹配检测框。
+     *
+     * @param detectionId 检测框 ID
+     * @param ignoreDTO 忽略请求
+     */
+    void ignoreDetection(Long detectionId, AttendanceDetectionIgnoreDTO ignoreDTO);
+
+    /**
+     * 将未匹配检测框指派给学生。
+     *
+     * @param detectionId 检测框 ID
+     * @param assignDTO 指派请求
+     */
+    void assignDetection(Long detectionId, AttendanceDetectionAssignDTO assignDTO);
 
     /**
      * 获取会话的考勤记录列表

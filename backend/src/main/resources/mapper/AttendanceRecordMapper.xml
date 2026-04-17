@@ -27,7 +27,7 @@
         <foreach collection="sessionIds" item="sessionId" open="(" separator="," close=")">
             #{sessionId}
         </foreach>
-        ORDER BY session_id ASC, record_id ASC
+        ORDER BY session_id , record_id
     </select>
 
     <select id="findByStudentId" resultMap="BaseResultMap">
@@ -85,13 +85,26 @@
         UPDATE attendance_record
         SET status = #{status},
             similarity_score = #{similarityScore},
+            face_location = #{faceLocation},
             update_type = #{updateType}
         WHERE record_id = #{recordId}
     </update>
 
+    <update id="resetBySessionId">
+        UPDATE attendance_record
+        SET status = 0,
+            similarity_score = NULL,
+            face_location = NULL,
+            update_type = 1
+        WHERE session_id = #{sessionId}
+    </update>
+
     <update id="updateStatus">
         UPDATE attendance_record
-        SET status = #{status}, similarity_score = #{similarityScore}
+        SET status = #{status},
+            similarity_score = #{similarityScore},
+            face_location = #{faceLocation},
+            update_type = 1
         WHERE session_id = #{sessionId} AND student_id = #{studentId}
     </update>
 

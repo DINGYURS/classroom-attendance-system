@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.project.backend.mapper.AttendanceDetectionMapper">
+
+    <resultMap id="BaseResultMap" type="com.project.backend.pojo.entity.AttendanceDetection">
+        <id column="detection_id" property="detectionId"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="image_index" property="imageIndex"/>
+        <result column="face_index" property="faceIndex"/>
+        <result column="bbox" property="bbox"/>
+        <result column="detection_score" property="detectionScore"/>
+        <result column="matched" property="matched"/>
+        <result column="student_id" property="studentId"/>
+        <result column="record_id" property="recordId"/>
+        <result column="similarity_score" property="similarityScore"/>
+        <result column="ignored" property="ignored"/>
+        <result column="ignore_reason" property="ignoreReason"/>
+    </resultMap>
+
+    <select id="findBySessionId" resultMap="BaseResultMap">
+        SELECT *
+        FROM attendance_detection
+        WHERE session_id = #{sessionId}
+        ORDER BY image_index, face_index, detection_id
+    </select>
+
+    <select id="findById" resultMap="BaseResultMap">
+        SELECT *
+        FROM attendance_detection
+        WHERE detection_id = #{detectionId}
+    </select>
+
+    <select id="findActiveByRecordId" resultMap="BaseResultMap">
+        SELECT *
+        FROM attendance_detection
+        WHERE record_id = #{recordId}
+          AND matched = 1
+          AND ignored = 0
+        ORDER BY detection_id DESC
+        LIMIT 1
+    </select>
+
+    <insert id="batchInsert" parameterType="list">
+        INSERT INTO attendance_detection (
+            session_id,
+            image_index,
+            face_index,
+            bbox,
+            detection_score,
+            matched,
+            student_id,
+            record_id,
+            similarity_score
+        )
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (
+                #{item.sessionId},
+                #{item.imageIndex},
+                #{item.faceIndex},
+                #{item.bbox},
+                #{item.detectionScore},
+                #{item.matched},
+                #{item.studentId},
+                #{item.recordId},
+                #{item.similarityScore}
+            )
+        </foreach>
+    </insert>
+
+    <update id="markIgnored">
+        UPDATE attendance_detection
+        SET ignored = 1,
+            ignore_reason = #{ignoreReason}
+        WHERE detection_id = #{detectionId}
+    </update>
+
+    <update id="assignStudent">
+        UPDATE attendance_detection
+        SET matched = 1,
+            ignored = 0,
+            ignore_reason = NULL,
+            student_id = #{studentId},
+            record_id = #{recordId},
+            similarity_score = NULL
+        WHERE detection_id = #{detectionId}
+    </update>
+
+    <delete id="deleteBySessionId">
+        DELETE FROM attendance_detection WHERE session_id = #{sessionId}
+    </delete>
+</mapper>

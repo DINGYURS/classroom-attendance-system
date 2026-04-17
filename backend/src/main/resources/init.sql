@@ -86,8 +86,36 @@ create table attendance_record
 )
     comment '考勤明细表';
 
+create table attendance_detection
+(
+    detection_id     bigint auto_increment
+        primary key,
+    session_id       bigint            not null comment '关联会话',
+    image_index      int               not null comment '来源图片索引',
+    face_index       int               not null comment '图片内人脸序号',
+    bbox             varchar(128)      not null comment '检测框坐标 JSON，如 [x1,y1,x2,y2]',
+    detection_score  decimal(6, 4)     null comment '检测置信度',
+    matched          tinyint default 0 not null comment '是否匹配成功: 0-未匹配, 1-已匹配',
+    student_id       bigint            null comment '匹配到的学生 ID',
+    record_id        bigint            null comment '匹配到的考勤记录 ID',
+    similarity_score decimal(5, 4)     null comment '匹配相似度',
+    ignored          tinyint default 0 not null comment '是否已忽略: 0-否, 1-是',
+    ignore_reason    varchar(128)      null comment '忽略原因',
+    create_time      datetime default CURRENT_TIMESTAMP null,
+    constraint fk_detection_session
+        foreign key (session_id) references attendance_session (session_id)
+            on delete cascade
+)
+    comment '考勤检测结果表';
+
 create index idx_course
     on attendance_session (course_id);
+
+create index idx_detection_session
+    on attendance_detection (session_id);
+
+create index idx_detection_session_image
+    on attendance_detection (session_id, image_index);
 
 create index idx_teacher
     on course (teacher_id);

@@ -2,6 +2,9 @@ import axios from 'axios'
 import request from '@/utils/request'
 import { useAuthStore } from '@/stores/auth'
 import type {
+  AttendanceDetectionAssignDTO,
+  AttendanceDetectionIgnoreDTO,
+  AttendanceSessionAnnotationVO,
   AttendanceArchiveOptionsVO,
   AttendanceArchivePageVO,
   AttendanceArchiveQueryDTO,
@@ -36,6 +39,18 @@ export function recognizeAttendance(data: FaceRecognitionDTO) {
 
 export function getAttendanceSessionDetail(sessionId: number) {
   return request.get<any, Result<AttendanceSessionVO>>(`/attendance/session/${sessionId}`)
+}
+
+export function getAttendanceSessionAnnotations(sessionId: number) {
+  return request.get<any, Result<AttendanceSessionAnnotationVO>>(`/attendance/session/${sessionId}/annotations`)
+}
+
+export function ignoreAttendanceDetection(detectionId: number, data: AttendanceDetectionIgnoreDTO) {
+  return request.put<any, Result<void>>(`/attendance/detection/${detectionId}/ignore`, data)
+}
+
+export function assignAttendanceDetection(detectionId: number, data: AttendanceDetectionAssignDTO) {
+  return request.put<any, Result<void>>(`/attendance/detection/${detectionId}/assign`, data)
 }
 
 export function getAttendanceSessionRecords(sessionId: number) {

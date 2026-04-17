@@ -361,7 +361,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="data-center h-full flex flex-col gap-5 overflow-x-hidden pb-8">
+  <div class="data-center flex flex-col gap-5">
+    <!-- Header -->
+    <div class="-mb-1 shrink-0">
+      <h1 class="text-2xl font-bold text-gray-900">数据中心</h1>
+      <p class="text-gray-500 mt-1">在这里查看和分析考勤数据的整体分布、趋势及异常预警情况。</p>
+    </div>
+
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-wrap gap-4 items-end">
       <el-form :model="filterForm" :inline="true" class="flex-1 filter-form -mb-4">
         <el-form-item label="学期">
@@ -542,67 +548,7 @@ onUnmounted(() => {
   margin-bottom: 16px;
 }
 
-@contextScopeItemMention现在我们开始下一个页面的前端设计，下面是要求：
- 页面名：教师端 - 考勤档案
-  路由：/teacher/attendance-archive
-  菜单位置：教师端一级菜单，放在学生管理之后、统计分析之前
-
-  这个页面的定位不是“导出页”，而是历史考勤查询 + 报表导出 + 单次点名复盘的综合页面。导出只是它的一部分。
-
-  一、页面布局
-  建议采用后台常见的 4 区结构，自上而下：
-
-  1. 页面头部
-
-  - 左侧：标题“考勤档案”
-  - 下方副标题：用于查看历史点名、筛选记录、导出报表
-  - 右侧：两个主按钮
-  - 导出当前筛选结果
-  - 导出课程汇总报表
-
-  2. 筛选区
-     建议做成一整块卡片，字段如下：
-
-  - 课程下拉框
-  - 班级下拉框
-  - 日期范围
-  - 考勤状态下拉框：全部、正常、迟到、请假、缺勤
-  - 点名类型下拉框：全部、课堂识别、人工修正后结果
-  - 学生关键字输入框：学号/姓名
-  - 查询按钮
-  - 重置按钮
-
-  3. 汇总卡片区
-     放 4 到 6 张卡片：
-
-  - 点名次数
-  - 应到总人次
-  - 实到总人次
-  - 缺勤总人次
-  - 迟到总人次
-  - 平均出勤率
-
-  4. 主内容区
-     建议分成左右或上下两层：
-
-  上层：历史点名会话列表
-
-  - 每一行代表一次点名会话
-  - 可点击“查看详情”
-  - 可点击“导出本次报表”
-
-  下层：考勤明细表
-
-  - 展示当前筛选条件下的学生考勤明细
-  - 支持分页
-  - 支持按列排序
-  - 支持导出当前结果
-
-  如果你想减少页面拥挤，也可以只保留“会话列表”，点详情后右侧抽屉展示明细。
-
-
------
-现在请你按照要求编写前端代码，要求跟原有页面的设计风格相似，使用mock数据填充:deep(.el-checkbox__label) {
+:deep(.el-checkbox__label) {
   font-size: 13px !important;
   color: #4b5563 !important;
 }

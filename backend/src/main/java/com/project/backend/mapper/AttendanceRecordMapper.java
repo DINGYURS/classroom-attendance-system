@@ -56,10 +56,16 @@ public interface AttendanceRecordMapper {
     void update(AttendanceRecord record);
 
     /**
+     * 识别前重置会话下所有自动结果
+     */
+    void resetBySessionId(@Param("sessionId") Long sessionId);
+
+    /**
      * 根据会话和学生更新考勤状态
      */
     void updateStatus(@Param("sessionId") Long sessionId, @Param("studentId") Long studentId,
-                      @Param("status") Integer status, @Param("similarityScore") BigDecimal similarityScore);
+                      @Param("status") Integer status, @Param("similarityScore") BigDecimal similarityScore,
+                      @Param("faceLocation") String faceLocation);
 
     /**
      * 统计会话中各状态的人数

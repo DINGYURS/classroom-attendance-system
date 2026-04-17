@@ -110,6 +110,49 @@ export interface SessionRecordVO {
   status: number
   statusText: string
   similarityScore?: number | string
+  faceLocation?: string
+  manualModified?: boolean
+}
+
+export interface AttendanceSessionImageVO {
+  imageIndex: number
+  viewKey: string
+  objectKey: string
+  imageUrl: string
+}
+
+export interface AttendanceDetectionVO {
+  detectionId: number
+  imageIndex: number
+  viewKey: string
+  faceIndex: number
+  bbox: string
+  detectionScore?: string
+  matched: boolean
+  ignored?: boolean
+  ignoreReason?: string
+  studentId?: number
+  recordId?: number
+  studentNumber?: string
+  realName?: string
+  similarityScore?: string
+  finalStatus?: number
+  finalStatusText?: string
+  manualModified?: boolean
+}
+
+export interface AttendanceSessionAnnotationVO {
+  sessionId: number
+  images: AttendanceSessionImageVO[]
+  detections: AttendanceDetectionVO[]
+}
+
+export interface AttendanceDetectionIgnoreDTO {
+  ignoreReason?: string
+}
+
+export interface AttendanceDetectionAssignDTO {
+  studentId: number
 }
 
 export interface AttendanceArchiveQueryDTO {
@@ -222,6 +265,15 @@ export interface TeacherStudentTableVO {
   gender: string
   className: string
   avatarUrl: string
+}
+
+export interface CourseStudentVO {
+  userId: number
+  studentNumber: string
+  realName: string
+  adminClass: string
+  gender?: number
+  hasFaceFeature?: boolean
 }
 
 export interface StatisticsDashboardQuery {

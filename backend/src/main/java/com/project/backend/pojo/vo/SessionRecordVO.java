@@ -39,4 +39,10 @@ public class SessionRecordVO implements Serializable {
 
     @Schema(description = "相似度分数")
     private BigDecimal similarityScore;
+
+    @Schema(description = "人脸坐标 JSON")
+    private String faceLocation;
+
+    @Schema(description = "是否人工修正")
+    private Boolean manualModified;
 }

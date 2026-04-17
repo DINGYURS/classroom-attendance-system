@@ -3,6 +3,8 @@ package com.project.backend.service.impl;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.project.backend.pojo.dto.FaceDetectFaceDTO;
+import com.project.backend.pojo.dto.FaceDetectImageResultDTO;
 import com.project.backend.properties.PythonServiceProperties;
 import com.project.backend.service.PythonServiceClient;
 import lombok.extern.slf4j.Slf4j;
@@ -62,9 +64,9 @@ public class PythonServiceClientImpl implements PythonServiceClient {
     // ── /api/face/detect ────────────────────────────────────────────────────────
 
     @Override
-    public List<List<Double>> detectFaces(List<String> imageUrls) {
+    public List<FaceDetectImageResultDTO> detectFaces(List<String> imageUrls) {
         String url = pythonServiceProperties.getBaseUrl() + "/api/face/detect";
-        List<List<Double>> allEmbeddings = new ArrayList<>();
+        List<FaceDetectImageResultDTO> imageResults = new ArrayList<>();
 
         try {
             HttpHeaders headers = new HttpHeaders();
@@ -80,7 +82,7 @@ public class PythonServiceClientImpl implements PythonServiceClient {
                 JSONObject result = JSON.parseObject(response.getBody());
                 if (result.getInteger("code") != 1) {
                     log.error("Python /detect 返回错误: {}", result.getString("msg"));
-                    return allEmbeddings;
+                    return imageResults;
                 }
 
                 // data = [ { imageIndex, faces: [ { bbox, embedding, detScore } ] } ]
@@ -88,37 +90,47 @@ public class PythonServiceClientImpl implements PythonServiceClient {
                 for (int i = 0; i < dataArray.size(); i++) {
                     JSONObject imageResult = dataArray.getJSONObject(i);
                     JSONArray faces = imageResult.getJSONArray("faces");
-                    for (int j = 0; j < faces.size(); j++) {
-                        JSONObject face = faces.getJSONObject(j);
-                        JSONArray embeddingArr = face.getJSONArray("embedding");
-                        if (embeddingArr == null) continue;
+                    List<FaceDetectFaceDTO> faceList = new ArrayList<>();
 
-                        List<Double> embedding = new ArrayList<>();
-                        for (int k = 0; k < embeddingArr.size(); k++) {
-                            embedding.add(embeddingArr.getDouble(k));
+                    if (faces != null) {
+                        for (int j = 0; j < faces.size(); j++) {
+                            JSONObject face = faces.getJSONObject(j);
+
+                            JSONArray bboxArr = face.getJSONArray("bbox");
+                            List<Integer> bbox = new ArrayList<>();
+                            if (bboxArr != null) {
+                                for (int k = 0; k < bboxArr.size(); k++) {
+                                    bbox.add(bboxArr.getInteger(k));
+                                }
+                            }
+
+                            JSONArray embeddingArr = face.getJSONArray("embedding");
+                            List<Double> embedding = null;
+                            if (embeddingArr != null) {
+                                embedding = new ArrayList<>();
+                                for (int k = 0; k < embeddingArr.size(); k++) {
+                                    embedding.add(embeddingArr.getDouble(k));
+                                }
+                            }
+
+                            faceList.add(FaceDetectFaceDTO.builder()
+                                    .bbox(bbox)
+                                    .embedding(embedding)
+                                    .detScore(face.getDouble("detScore"))
+                                    .build());
                         }
-                        allEmbeddings.add(embedding);
                     }
+
+                    imageResults.add(FaceDetectImageResultDTO.builder()
+                            .imageIndex(imageResult.getInteger("imageIndex"))
+                            .faces(faceList)
+                            .build());
                 }
             }
         } catch (Exception e) {
             log.error("调用 Python /detect 失败: {}", e.getMessage());
         }
 
-        return allEmbeddings;
-    }
-
-    // ── /health ─────────────────────────────────────────────────────────────────
-
-    @Override
-    public boolean healthCheck() {
-        String url = pythonServiceProperties.getBaseUrl() + "/health";
-        try {
-            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
-            return response.getStatusCode() == HttpStatus.OK;
-        } catch (Exception e) {
-            log.error("Python 服务健康检查失败: {}", e.getMessage());
-            return false;
-        }
+        return imageResults;
     }
 }

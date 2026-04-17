@@ -1,5 +1,5 @@
 import request from '@/utils/request'
-import type { CourseDTO, Result, CourseVO, PageResult, TeacherStudentPageQuery, TeacherStudentTableVO } from '@/types/api'
+import type { CourseDTO, CourseStudentVO, Result, CourseVO, PageResult, TeacherStudentPageQuery, TeacherStudentTableVO } from '@/types/api'
 
 // 教师创建新课程
 export function createCourse(data: CourseDTO) {
@@ -21,6 +21,11 @@ export function getCourseStudentPage(courseId: number, params: TeacherStudentPag
   return request.get<any, Result<PageResult<TeacherStudentTableVO>>>(`/course/${courseId}/students/page`, {
     params
   })
+}
+
+// 获取课程下全部学生
+export function getCourseStudents(courseId: number) {
+  return request.get<any, Result<CourseStudentVO[]>>(`/course/${courseId}/students`)
 }
 
 // 更新课程信息

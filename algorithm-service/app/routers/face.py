@@ -95,6 +95,7 @@ async def detect_faces(request: DetectRequest) -> ApiResponse:
     """
     考勤合照检测：从多张图片中检测并提取所有人脸的特征向量
     Java 拿到结果后，在 Java 内存中与数据库学生特征做余弦相似度比对
+    detScore 仅表示人脸检测置信度；身份识别相似度由 Java 根据 embedding 和学生底库计算
     返回: { "code": 1, "data": [ { "imageIndex": 0, "faces": [ { "bbox": [...], "embedding": [...], "detScore": 0.9 } ] } ] }
     """
     try:

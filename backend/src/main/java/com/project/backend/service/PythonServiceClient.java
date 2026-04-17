@@ -1,5 +1,7 @@
 package com.project.backend.service;
 
+import com.project.backend.pojo.dto.FaceDetectImageResultDTO;
+
 import java.util.List;
 
 /**
@@ -20,12 +22,7 @@ public interface PythonServiceClient {
      * 考勤合照检测：从多张图片中检测并提取所有人脸的特征向量
      *
      * @param imageUrls 合照的 MinIO 预签名 URL 列表
-     * @return 每张人脸的 embedding，List<List<Double>>，Java 拿到后自行与数据库比对
+     * @return 每张图片的人脸检测结果，包含检测框、embedding、检测置信度
      */
-    List<List<Double>> detectFaces(List<String> imageUrls);
-
-    /**
-     * 检查 Python 服务健康状态
-     */
-    boolean healthCheck();
+    List<FaceDetectImageResultDTO> detectFaces(List<String> imageUrls);
 }

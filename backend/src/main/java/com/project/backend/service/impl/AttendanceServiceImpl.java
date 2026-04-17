@@ -8,6 +8,7 @@ import com.project.backend.constant.MessageConstants;
 import com.project.backend.constant.RoleConstants;
 import com.project.backend.context.BaseContext;
 import com.project.backend.exception.BusinessException;
+import com.project.backend.mapper.AttendanceDetectionMapper;
 import com.project.backend.mapper.AttendanceRecordMapper;
 import com.project.backend.mapper.AttendanceSessionMapper;
 import com.project.backend.mapper.CourseMapper;
@@ -15,9 +16,14 @@ import com.project.backend.mapper.CourseStudentMapper;
 import com.project.backend.mapper.StudentMapper;
 import com.project.backend.mapper.UserMapper;
 import com.project.backend.pojo.dto.AttendanceArchiveQueryDTO;
+import com.project.backend.pojo.dto.AttendanceDetectionAssignDTO;
+import com.project.backend.pojo.dto.AttendanceDetectionIgnoreDTO;
 import com.project.backend.pojo.dto.AttendanceStartDTO;
 import com.project.backend.pojo.dto.AttendanceUpdateDTO;
+import com.project.backend.pojo.dto.FaceDetectFaceDTO;
+import com.project.backend.pojo.dto.FaceDetectImageResultDTO;
 import com.project.backend.pojo.dto.FaceRecognitionDTO;
+import com.project.backend.pojo.entity.AttendanceDetection;
 import com.project.backend.pojo.entity.AttendanceRecord;
 import com.project.backend.pojo.entity.AttendanceSession;
 import com.project.backend.pojo.entity.Course;
@@ -31,6 +37,9 @@ import com.project.backend.pojo.vo.AttendanceArchiveOptionsVO;
 import com.project.backend.pojo.vo.AttendanceArchivePageVO;
 import com.project.backend.pojo.vo.AttendanceArchiveSessionDetailVO;
 import com.project.backend.pojo.vo.AttendanceArchiveSessionExportVO;
+import com.project.backend.pojo.vo.AttendanceDetectionVO;
+import com.project.backend.pojo.vo.AttendanceSessionAnnotationVO;
+import com.project.backend.pojo.vo.AttendanceSessionImageVO;
 import com.project.backend.pojo.vo.AttendanceArchiveSessionVO;
 import com.project.backend.pojo.vo.AttendanceArchiveSummaryVO;
 import com.project.backend.pojo.vo.AttendanceSessionVO;
@@ -82,6 +91,9 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Autowired
     private AttendanceRecordMapper attendanceRecordMapper;
+
+    @Autowired
+    private AttendanceDetectionMapper attendanceDetectionMapper;
 
     @Autowired
     private CourseStudentMapper courseStudentMapper;
@@ -172,8 +184,13 @@ public class AttendanceServiceImpl implements AttendanceService {
             imageUrls.add(minioService.getFileUrl(key));
         }
 
-        List<List<Double>> detectedEmbeddings = pythonServiceClient.detectFaces(imageUrls);
-        log.info("合照检测到人脸数: {}", detectedEmbeddings.size());
+        List<FaceDetectImageResultDTO> detectResults = pythonServiceClient.detectFaces(imageUrls);
+        int totalDetectedFaces = detectResults.stream()
+                .map(FaceDetectImageResultDTO::getFaces)
+                .filter(Objects::nonNull)
+                .mapToInt(List::size)
+                .sum();
+        log.info("合照检测到人脸数: {}", totalDetectedFaces);
 
         List<Long> studentIds = courseStudentMapper.findStudentIdsByCourseId(session.getCourseId());
         if (studentIds == null) {
@@ -200,55 +217,125 @@ public class AttendanceServiceImpl implements AttendanceService {
         log.info("点名特征预处理完成: totalStudents={}, validFeatures={}, invalidFeatures={}",
                 students.size(), studentFeatureMap.size(), invalidFeatureCount);
 
+        attendanceRecordMapper.resetBySessionId(recognitionDTO.getSessionId());
+        attendanceDetectionMapper.deleteBySessionId(recognitionDTO.getSessionId());
+
+        Map<Long, AttendanceRecord> recordMap = attendanceRecordMapper.findBySessionId(recognitionDTO.getSessionId()).stream()
+                .collect(Collectors.toMap(AttendanceRecord::getStudentId, record -> record, (left, right) -> left, LinkedHashMap::new));
+
         List<RecognitionResultVO> results = new ArrayList<>();
+        List<AttendanceDetection> detections = new ArrayList<>();
         Set<Long> matchedStudentIds = new HashSet<>();
 
-        for (List<Double> detectedEmbedding : detectedEmbeddings) {
-            double[] inputFeature = toDoubleArray(detectedEmbedding);
-            RecognitionResultVO bestMatch = null;
-            double bestSimilarity = 0;
-
-            for (Student student : students) {
-                if (matchedStudentIds.contains(student.getUserId())) {
-                    continue;
-                }
-
-                double[] storedFeature = studentFeatureMap.get(student.getUserId());
-                if (storedFeature == null || storedFeature.length == 0) {
-                    continue;
-                }
-                double similarity = cosineSimilarity(inputFeature, storedFeature);
-                if (similarity > SIMILARITY_THRESHOLD && similarity > bestSimilarity) {
-                    bestSimilarity = similarity;
-                    User user = userMapper.findById(student.getUserId());
-                    bestMatch = RecognitionResultVO.builder()
-                            .studentId(student.getUserId())
-                            .studentNumber(student.getStudentNumber())
-                            .realName(user != null ? user.getRealName() : "未知")
-                            .similarity(similarity)
-                            .matched(true)
-                            .build();
-                }
-            }
-
-            if (bestMatch != null) {
-                matchedStudentIds.add(bestMatch.getStudentId());
-                bestMatch.setStatus(AttendanceStatus.PRESENT);
-
-                attendanceRecordMapper.updateStatus(
-                        recognitionDTO.getSessionId(),
-                        bestMatch.getStudentId(),
-                        AttendanceStatus.PRESENT,
-                        BigDecimal.valueOf(bestMatch.getSimilarity())
-                );
-                results.add(bestMatch);
+        for (FaceDetectImageResultDTO imageResult : detectResults) {
+            List<FaceDetectFaceDTO> faces = imageResult.getFaces();
+            if (faces == null || faces.isEmpty()) {
                 continue;
             }
 
-            results.add(RecognitionResultVO.builder()
-                    .matched(false)
-                    .similarity(0.0)
-                    .build());
+            for (int faceIndex = 0; faceIndex < faces.size(); faceIndex++) {
+                FaceDetectFaceDTO face = faces.get(faceIndex);
+                List<Double> embedding = face.getEmbedding();
+                String bboxJson = JSON.toJSONString(face.getBbox() == null ? List.of() : face.getBbox());
+                BigDecimal detectionScore = face.getDetScore() == null ? null : BigDecimal.valueOf(face.getDetScore());
+
+                if (embedding == null || embedding.isEmpty()) {
+                    results.add(RecognitionResultVO.builder()
+                            .matched(false)
+                            .similarity(0.0)
+                            .build());
+                    detections.add(AttendanceDetection.builder()
+                            .sessionId(recognitionDTO.getSessionId())
+                            .imageIndex(imageResult.getImageIndex())
+                            .faceIndex(faceIndex)
+                            .bbox(bboxJson)
+                            .detectionScore(detectionScore)
+                            .matched(false)
+                            .build());
+                    continue;
+                }
+
+                double[] inputFeature = toDoubleArray(embedding);
+                RecognitionResultVO bestMatch = null;
+                double bestSimilarity = 0;
+
+                for (Student student : students) {
+                    double[] storedFeature = studentFeatureMap.get(student.getUserId());
+                    if (storedFeature == null || storedFeature.length == 0) {
+                        continue;
+                    }
+                    double similarity = cosineSimilarity(inputFeature, storedFeature);
+                    if (similarity > SIMILARITY_THRESHOLD && similarity > bestSimilarity) {
+                        bestSimilarity = similarity;
+                        User user = userMapper.findById(student.getUserId());
+                        bestMatch = RecognitionResultVO.builder()
+                                .studentId(student.getUserId())
+                                .studentNumber(student.getStudentNumber())
+                                .realName(user != null ? user.getRealName() : "未知")
+                                .similarity(similarity)
+                                .matched(true)
+                                .build();
+                    }
+                }
+
+                if (bestMatch != null) {
+                    boolean firstMatch = matchedStudentIds.add(bestMatch.getStudentId());
+                    bestMatch.setStatus(AttendanceStatus.PRESENT);
+                    BigDecimal matchSimilarity = BigDecimal.valueOf(bestMatch.getSimilarity());
+
+                    AttendanceRecord matchedRecord = recordMap.get(bestMatch.getStudentId());
+                    if (matchedRecord != null) {
+                        BigDecimal currentSimilarity = matchedRecord.getSimilarityScore();
+                        boolean betterEvidence = currentSimilarity == null || matchSimilarity.compareTo(currentSimilarity) > 0;
+                        if (firstMatch || betterEvidence) {
+                            attendanceRecordMapper.updateStatus(
+                                    recognitionDTO.getSessionId(),
+                                    bestMatch.getStudentId(),
+                                    AttendanceStatus.PRESENT,
+                                    matchSimilarity,
+                                    bboxJson
+                            );
+
+                            matchedRecord.setStatus(AttendanceStatus.PRESENT);
+                            matchedRecord.setSimilarityScore(matchSimilarity);
+                            matchedRecord.setFaceLocation(bboxJson);
+                            matchedRecord.setUpdateType(1);
+                        }
+                    }
+
+                    detections.add(AttendanceDetection.builder()
+                            .sessionId(recognitionDTO.getSessionId())
+                            .imageIndex(imageResult.getImageIndex())
+                            .faceIndex(faceIndex)
+                            .bbox(bboxJson)
+                            .detectionScore(detectionScore)
+                            .matched(true)
+                            .studentId(bestMatch.getStudentId())
+                            .recordId(matchedRecord != null ? matchedRecord.getRecordId() : null)
+                            .similarityScore(matchSimilarity)
+                            .build());
+                    results.add(bestMatch);
+                    continue;
+                }
+
+                detections.add(AttendanceDetection.builder()
+                        .sessionId(recognitionDTO.getSessionId())
+                        .imageIndex(imageResult.getImageIndex())
+                        .faceIndex(faceIndex)
+                        .bbox(bboxJson)
+                        .detectionScore(detectionScore)
+                        .matched(false)
+                        .build());
+
+                results.add(RecognitionResultVO.builder()
+                        .matched(false)
+                        .similarity(0.0)
+                        .build());
+            }
+        }
+
+        if (!detections.isEmpty()) {
+            attendanceDetectionMapper.batchInsert(detections);
         }
 
         session.setSourceImages(JSON.toJSONString(recognitionDTO.getImageKeys()));
@@ -256,7 +343,7 @@ public class AttendanceServiceImpl implements AttendanceService {
         session.setTotalStudent(studentIds.size());
         attendanceSessionMapper.update(session);
 
-        log.info("识别完成: totalFaces={}, matchedCount={}", detectedEmbeddings.size(), matchedStudentIds.size());
+        log.info("识别完成: totalFaces={}, matchedCount={}", totalDetectedFaces, matchedStudentIds.size());
         return results;
     }
 
@@ -281,6 +368,112 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     @Override
+    public AttendanceSessionAnnotationVO getSessionAnnotations(Long sessionId) {
+        Long teacherId = validateCurrentTeacher();
+        AttendanceSession session = attendanceSessionMapper.findById(sessionId);
+        if (session == null) {
+            throw new BusinessException("考勤会话不存在");
+        }
+
+        Course course = courseMapper.findById(session.getCourseId());
+        if (course == null || !teacherId.equals(course.getTeacherId())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+
+        List<String> imageKeys = parseSourceImages(session.getSourceImages());
+        List<AttendanceSessionImageVO> imageList = new ArrayList<>();
+        for (int index = 0; index < imageKeys.size(); index++) {
+            String objectKey = imageKeys.get(index);
+            imageList.add(AttendanceSessionImageVO.builder()
+                    .imageIndex(index)
+                    .viewKey(resolveViewKey(index))
+                    .objectKey(objectKey)
+                    .imageUrl(StringUtils.hasText(objectKey) ? minioService.getFileUrl(objectKey) : "")
+                    .build());
+        }
+
+        List<AttendanceDetection> detections = attendanceDetectionMapper.findBySessionId(sessionId);
+        Map<Long, Student> studentMap = loadStudentMap(detections.stream()
+                .map(AttendanceDetection::getStudentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toCollection(LinkedHashSet::new)));
+        Map<Long, User> userMap = loadUserMap(studentMap.keySet());
+        Map<Long, AttendanceRecord> recordMap = attendanceRecordMapper.findBySessionId(sessionId).stream()
+                .collect(Collectors.toMap(AttendanceRecord::getRecordId, record -> record, (left, right) -> left, LinkedHashMap::new));
+
+        List<AttendanceDetectionVO> detectionList = detections.stream()
+                .map(detection -> buildDetectionVO(detection, studentMap, userMap, recordMap))
+                .toList();
+
+        return AttendanceSessionAnnotationVO.builder()
+                .sessionId(sessionId)
+                .images(imageList)
+                .detections(detectionList)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void ignoreDetection(Long detectionId, AttendanceDetectionIgnoreDTO ignoreDTO) {
+        AttendanceDetection detection = validateDetectionPermission(detectionId);
+        if (Boolean.TRUE.equals(detection.getMatched())) {
+            throw new BusinessException("已匹配检测框不能直接忽略");
+        }
+
+        String reason = ignoreDTO == null ? "" : defaultText(ignoreDTO.getIgnoreReason());
+        attendanceDetectionMapper.markIgnored(detectionId, StringUtils.hasText(reason) ? reason : "教师确认忽略");
+        log.info("检测框已忽略: detectionId={}, sessionId={}", detectionId, detection.getSessionId());
+    }
+
+    @Override
+    @Transactional
+    public void assignDetection(Long detectionId, AttendanceDetectionAssignDTO assignDTO) {
+        if (assignDTO == null || assignDTO.getStudentId() == null) {
+            throw new BusinessException("请选择要指派的学生");
+        }
+
+        AttendanceDetection detection = validateDetectionPermission(detectionId);
+        if (Boolean.TRUE.equals(detection.getMatched())) {
+            throw new BusinessException("该检测框已匹配学生");
+        }
+
+        AttendanceSession session = attendanceSessionMapper.findById(detection.getSessionId());
+        if (session == null) {
+            throw new BusinessException("考勤会话不存在");
+        }
+
+        Long studentId = assignDTO.getStudentId();
+        List<Long> courseStudentIds = courseStudentMapper.findStudentIdsByCourseId(session.getCourseId());
+        if (courseStudentIds == null || !courseStudentIds.contains(studentId)) {
+            throw new BusinessException("该学生不属于当前课程");
+        }
+
+        AttendanceRecord targetRecord = attendanceRecordMapper.findBySessionId(session.getSessionId()).stream()
+                .filter(record -> studentId.equals(record.getStudentId()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException("学生考勤记录不存在"));
+
+        AttendanceDetection existingDetection = attendanceDetectionMapper.findActiveByRecordId(targetRecord.getRecordId());
+        if (existingDetection != null && !existingDetection.getDetectionId().equals(detectionId)) {
+            throw new BusinessException("该学生已有绑定的检测框");
+        }
+
+        targetRecord.setStatus(AttendanceStatus.PRESENT);
+        targetRecord.setSimilarityScore(null);
+        targetRecord.setFaceLocation(detection.getBbox());
+        targetRecord.setUpdateType(2);
+        attendanceRecordMapper.update(targetRecord);
+        attendanceDetectionMapper.assignStudent(detectionId, studentId, targetRecord.getRecordId());
+
+        List<AttendanceRecord> sessionRecords = attendanceRecordMapper.findBySessionId(session.getSessionId());
+        session.setActualStudent(countActualStudents(sessionRecords));
+        attendanceSessionMapper.update(session);
+
+        log.info("检测框已人工指派: detectionId={}, studentId={}, recordId={}",
+                detectionId, studentId, targetRecord.getRecordId());
+    }
+
+    @Override
     public List<SessionRecordVO> getSessionRecords(Long sessionId) {
         List<AttendanceRecord> records = attendanceRecordMapper.findBySessionId(sessionId);
         List<SessionRecordVO> result = new ArrayList<>();
@@ -297,6 +490,8 @@ public class AttendanceServiceImpl implements AttendanceService {
                     .status(record.getStatus())
                     .statusText(getStatusText(record.getStatus()))
                     .similarityScore(record.getSimilarityScore())
+                    .faceLocation(record.getFaceLocation())
+                    .manualModified(Integer.valueOf(2).equals(record.getUpdateType()))
                     .build());
         }
 
@@ -708,6 +903,32 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     /**
+     * 校验检测框归属当前教师。
+     */
+    private AttendanceDetection validateDetectionPermission(Long detectionId) {
+        if (detectionId == null) {
+            throw new BusinessException("检测框参数无效");
+        }
+
+        Long teacherId = validateCurrentTeacher();
+        AttendanceDetection detection = attendanceDetectionMapper.findById(detectionId);
+        if (detection == null) {
+            throw new BusinessException("检测框不存在");
+        }
+
+        AttendanceSession session = attendanceSessionMapper.findById(detection.getSessionId());
+        if (session == null) {
+            throw new BusinessException("考勤会话不存在");
+        }
+
+        Course course = courseMapper.findById(session.getCourseId());
+        if (course == null || !teacherId.equals(course.getTeacherId())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+        return detection;
+    }
+
+    /**
      * 构建考勤档案查询上下文。
      */
     private ArchiveContext buildArchiveContext(AttendanceArchiveQueryDTO queryDTO) {
@@ -842,9 +1063,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             String keyword = queryDTO.getKeyword().trim();
             String studentNumber = student != null ? defaultText(student.getStudentNumber()) : "";
             String realName = user != null ? defaultText(user.getRealName()) : "";
-            if (!studentNumber.contains(keyword) && !realName.contains(keyword)) {
-                return false;
-            }
+            return studentNumber.contains(keyword) || realName.contains(keyword);
         }
         return true;
     }
@@ -1052,6 +1271,69 @@ public class AttendanceServiceImpl implements AttendanceService {
      */
     private String defaultText(String value) {
         return StringUtils.hasText(value) ? value.trim() : "";
+    }
+
+    /**
+     * 解析会话原图列表。
+     */
+    private List<String> parseSourceImages(String sourceImages) {
+        if (!StringUtils.hasText(sourceImages)) {
+            return new ArrayList<>();
+        }
+        try {
+            List<String> imageKeys = JSON.parseArray(sourceImages, String.class);
+            return imageKeys == null ? new ArrayList<>() : imageKeys;
+        } catch (Exception e) {
+            log.warn("解析会话原图列表失败: sourceImages={}", sourceImages, e);
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * 解析标注视角。
+     */
+    private String resolveViewKey(Integer imageIndex) {
+        if (imageIndex == null) {
+            return "unknown";
+        }
+        return switch (imageIndex) {
+            case 0 -> "left";
+            case 1 -> "center";
+            case 2 -> "right";
+            default -> "extra-" + imageIndex;
+        };
+    }
+
+    /**
+     * 构建检测框展示数据。
+     */
+    private AttendanceDetectionVO buildDetectionVO(AttendanceDetection detection,
+                                                   Map<Long, Student> studentMap,
+                                                   Map<Long, User> userMap,
+                                                   Map<Long, AttendanceRecord> recordMap) {
+        Student student = detection.getStudentId() == null ? null : studentMap.get(detection.getStudentId());
+        User user = detection.getStudentId() == null ? null : userMap.get(detection.getStudentId());
+        AttendanceRecord record = detection.getRecordId() == null ? null : recordMap.get(detection.getRecordId());
+
+        return AttendanceDetectionVO.builder()
+                .detectionId(detection.getDetectionId())
+                .imageIndex(detection.getImageIndex())
+                .viewKey(resolveViewKey(detection.getImageIndex()))
+                .faceIndex(detection.getFaceIndex())
+                .bbox(detection.getBbox())
+                .detectionScore(formatSimilarity(detection.getDetectionScore()))
+                .matched(Boolean.TRUE.equals(detection.getMatched()))
+                .ignored(Boolean.TRUE.equals(detection.getIgnored()))
+                .ignoreReason(defaultText(detection.getIgnoreReason()))
+                .studentId(detection.getStudentId())
+                .recordId(detection.getRecordId())
+                .studentNumber(student != null ? defaultText(student.getStudentNumber()) : "")
+                .realName(user != null ? defaultText(user.getRealName()) : "")
+                .similarityScore(formatSimilarity(detection.getSimilarityScore()))
+                .finalStatus(record != null ? record.getStatus() : null)
+                .finalStatusText(record != null ? getStatusText(record.getStatus()) : "")
+                .manualModified(record != null && Integer.valueOf(2).equals(record.getUpdateType()))
+                .build();
     }
 
     /**

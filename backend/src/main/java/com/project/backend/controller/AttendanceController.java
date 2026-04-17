@@ -3,11 +3,14 @@ package com.project.backend.controller;
 import com.project.backend.pojo.dto.AttendanceStartDTO;
 import com.project.backend.pojo.dto.AttendanceUpdateDTO;
 import com.project.backend.pojo.dto.AttendanceArchiveQueryDTO;
+import com.project.backend.pojo.dto.AttendanceDetectionAssignDTO;
+import com.project.backend.pojo.dto.AttendanceDetectionIgnoreDTO;
 import com.project.backend.pojo.dto.FaceRecognitionDTO;
 import com.project.backend.pojo.result.Result;
 import com.project.backend.pojo.vo.AttendanceArchiveOptionsVO;
 import com.project.backend.pojo.vo.AttendanceArchivePageVO;
 import com.project.backend.pojo.vo.AttendanceArchiveSessionDetailVO;
+import com.project.backend.pojo.vo.AttendanceSessionAnnotationVO;
 import com.project.backend.pojo.vo.AttendanceSessionVO;
 import com.project.backend.pojo.vo.RecognitionResultVO;
 import com.project.backend.pojo.vo.SessionRecordVO;
@@ -74,6 +77,39 @@ public class AttendanceController {
     public Result<AttendanceSessionVO> getSessionDetail(@PathVariable Long sessionId) {
         AttendanceSessionVO sessionVO = attendanceService.getSessionDetail(sessionId);
         return Result.success(sessionVO);
+    }
+
+    /**
+     * 获取会话标注结果
+     */
+    @GetMapping("/session/{sessionId}/annotations")
+    @Operation(summary = "获取会话标注结果", description = "返回会话原图与检测框标注数据")
+    public Result<AttendanceSessionAnnotationVO> getSessionAnnotations(@PathVariable Long sessionId) {
+        return Result.success(attendanceService.getSessionAnnotations(sessionId));
+    }
+
+    /**
+     * 忽略未匹配检测框
+     */
+    @PutMapping("/detection/{detectionId}/ignore")
+    @Operation(summary = "忽略检测框", description = "教师确认未匹配检测框不计入本次考勤")
+    public Result<Void> ignoreDetection(@PathVariable Long detectionId,
+                                        @RequestBody(required = false) AttendanceDetectionIgnoreDTO ignoreDTO) {
+        log.info("忽略检测框: detectionId={}", detectionId);
+        attendanceService.ignoreDetection(detectionId, ignoreDTO);
+        return Result.success();
+    }
+
+    /**
+     * 指派未匹配检测框
+     */
+    @PutMapping("/detection/{detectionId}/assign")
+    @Operation(summary = "指派检测框", description = "教师将未匹配检测框手动绑定为某个学生")
+    public Result<Void> assignDetection(@PathVariable Long detectionId,
+                                        @RequestBody AttendanceDetectionAssignDTO assignDTO) {
+        log.info("指派检测框: detectionId={}, studentId={}", detectionId, assignDTO.getStudentId());
+        attendanceService.assignDetection(detectionId, assignDTO);
+        return Result.success();
     }
 
     /**

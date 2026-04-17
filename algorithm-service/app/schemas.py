@@ -26,7 +26,7 @@ class FaceInfo(BaseModel):
     """单张人脸信息"""
     bbox: List[int] = Field(..., description="人脸边界框 [x1, y1, x2, y2]")
     embedding: Optional[List[float]] = Field(None, description="512 维特征向量，Java 用于余弦相似度比对")
-    detScore: float = Field(default=0.0, description="人脸检测置信度")
+    detScore: float = Field(default=0.0, description="人脸检测置信度，仅表示该区域像人脸，不代表身份识别相似度")
 
 
 class DetectResponse(BaseModel):

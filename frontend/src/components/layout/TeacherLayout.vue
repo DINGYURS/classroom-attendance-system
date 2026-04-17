@@ -195,12 +195,14 @@ const activeMenu = computed(() => route.path)
       </header>
 
       <!-- Page Content -->
-      <main class="flex-1 overflow-auto p-6 relative">
-        <router-view v-slot="{ Component, route: currentRoute }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" :key="currentRoute.path" />
-          </transition>
-        </router-view>
+      <main class="flex-1 overflow-hidden relative flex flex-col">
+        <el-scrollbar class="flex-1 w-full" view-class="p-6 min-h-full box-border flex flex-col">
+          <router-view v-slot="{ Component, route: currentRoute }">
+            <transition name="fade" mode="out-in">
+              <component :is="Component" :key="currentRoute.path" class="flex-1" />
+            </transition>
+          </router-view>
+        </el-scrollbar>
       </main>
     </div>
 
