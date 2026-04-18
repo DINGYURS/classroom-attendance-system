@@ -186,16 +186,19 @@ public class StudentServiceImpl implements StudentService {
     }
 
     @Override
-    public List<StudentNoticeVO> getNoticeList() {
-        Long studentId = BaseContext.getCurrentId();
-        User currentUser = userMapper.findById(studentId);
-        if (currentUser == null) {
-            throw new BusinessException(MessageConstants.USER_NOT_FOUND);
+    public List<StudentNoticeVO> getNoticeList(Integer status) {
+        Long studentId = validateCurrentStudent();
+        if (status != null && status != 0 && status != 1) {
+            throw new BusinessException(MessageConstants.PARAM_ERROR);
         }
-        if (!RoleConstants.ROLE_STUDENT.equals(currentUser.getRole())) {
-            throw new BusinessException(MessageConstants.NO_PERMISSION);
-        }
-        return attendanceNoticeMapper.findByStudentId(studentId);
+        return attendanceNoticeMapper.findByStudentId(studentId, status);
+    }
+
+    @Override
+    public Integer countUnreadNotices() {
+        Long studentId = validateCurrentStudent();
+        Integer unreadCount = attendanceNoticeMapper.countUnreadByStudentId(studentId);
+        return unreadCount == null ? 0 : unreadCount;
     }
 
     @Override
@@ -204,14 +207,7 @@ public class StudentServiceImpl implements StudentService {
             throw new BusinessException(MessageConstants.PARAM_ERROR);
         }
 
-        Long studentId = BaseContext.getCurrentId();
-        User currentUser = userMapper.findById(studentId);
-        if (currentUser == null) {
-            throw new BusinessException(MessageConstants.USER_NOT_FOUND);
-        }
-        if (!RoleConstants.ROLE_STUDENT.equals(currentUser.getRole())) {
-            throw new BusinessException(MessageConstants.NO_PERMISSION);
-        }
+        Long studentId = validateCurrentStudent();
 
         var notice = attendanceNoticeMapper.findById(noticeId);
         if (notice == null || !studentId.equals(notice.getStudentId())) {
@@ -248,6 +244,21 @@ public class StudentServiceImpl implements StudentService {
         }
         String trimmed = keyword.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    /**
+     * 校验当前登录用户是否为学生，并返回学生 ID。
+     */
+    private Long validateCurrentStudent() {
+        Long studentId = BaseContext.getCurrentId();
+        User currentUser = userMapper.findById(studentId);
+        if (currentUser == null) {
+            throw new BusinessException(MessageConstants.USER_NOT_FOUND);
+        }
+        if (!RoleConstants.ROLE_STUDENT.equals(currentUser.getRole())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+        return studentId;
     }
 
     /**

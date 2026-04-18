@@ -49,7 +49,12 @@ public interface StudentService {
     /**
      * 获取学生端通知列表。
      */
-    List<StudentNoticeVO> getNoticeList();
+    List<StudentNoticeVO> getNoticeList(Integer status);
+
+    /**
+     * 获取学生端未读通知数量。
+     */
+    Integer countUnreadNotices();
 
     /**
      * 标记通知为已读。

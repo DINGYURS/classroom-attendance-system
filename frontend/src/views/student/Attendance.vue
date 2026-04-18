@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import {
   Checked,
   CircleCloseFilled,
@@ -13,6 +14,8 @@ import {
 import { ElMessage } from 'element-plus'
 import { getAttendanceRecords } from '@/api/student'
 import type { AttendanceRecordVO } from '@/types/api'
+
+const route = useRoute()
 
 // -- 屏幕宽度监听，适配 Drawer 弹出方向 --
 const isMobile = ref(window.innerWidth < 768)
@@ -60,6 +63,22 @@ const appliedFilter = reactive({
   course: '' as '' | number,
   status: '' as StatusType,
 })
+
+const syncFilterFromRoute = () => {
+  const courseId = route.query.courseId
+  const status = route.query.status
+
+  filterForm.course = courseId !== undefined && courseId !== '' && !Number.isNaN(Number(courseId))
+    ? Number(courseId)
+    : ''
+  filterForm.status = status !== undefined && status !== '' && !Number.isNaN(Number(status))
+    ? Number(status)
+    : ''
+
+  appliedFilter.term = filterForm.term
+  appliedFilter.course = filterForm.course
+  appliedFilter.status = filterForm.status
+}
 
 const termOptions = computed(() => {
   const semesterSet = new Set<string>()
@@ -130,7 +149,12 @@ const fetchAttendanceRecords = async () => {
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)
+  syncFilterFromRoute()
   void fetchAttendanceRecords()
+})
+
+watch(() => route.query, () => {
+  syncFilterFromRoute()
 })
 
 const openDetail = (record: AttendanceRecordVO) => {
