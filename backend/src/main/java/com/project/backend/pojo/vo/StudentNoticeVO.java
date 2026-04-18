@@ -22,6 +22,9 @@ public class StudentNoticeVO implements Serializable {
     @Schema(description = "通知 ID")
     private Long noticeId;
 
+    @Schema(description = "课程 ID")
+    private Long courseId;
+
     @Schema(description = "课程名称")
     private String courseName;
 

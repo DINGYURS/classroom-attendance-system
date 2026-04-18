@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { Camera, List, Edit, Key, User, Checked, Warning, ArrowRight, DataLine } from '@element-plus/icons-vue'
+import { Camera, List, Edit, Key, User, Checked, Warning, ArrowRight, DataLine, Bell } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { FormInstance, FormRules } from 'element-plus'
 import { updateStudentInfo, getAttendanceRecords, getStudentInfo } from '@/api/student'
+import { getUnreadCount } from '@/api/notice'
 import { useAuthStore } from '@/stores/auth'
 
 const authStore = useAuthStore()
@@ -148,8 +149,21 @@ const submitForm = async (formEl: FormInstance | undefined) => {
   })
 }
 
+const unreadNoticeCount = ref(0)
+const fetchUnreadCount = async () => {
+    try {
+        const res = await getUnreadCount()
+        if (res && res.code === 1) {
+            unreadNoticeCount.value = res.data || 0
+        }
+    } catch(err) {
+        console.error('Failed to get unread notice count', err)
+    }
+}
+
 onMounted(() => {
   fetchData()
+  fetchUnreadCount()
 })
 </script>
 
@@ -209,6 +223,27 @@ onMounted(() => {
           <div>
             <h3 class="font-bold text-gray-800 tracking-wide text-base">编辑资料</h3>
             <p class="text-xs text-gray-500 mt-1">设置密码或修改基本信息</p>
+          </div>
+        </div>
+        <div class="text-gray-300">
+           <el-icon><ArrowRight /></el-icon>
+        </div>
+      </div>
+
+      <!-- Absence Notices Action Card -->
+      <div class="bg-white rounded-2xl shadow-xs p-5 flex items-center justify-between border border-gray-100 hover:shadow-md transition-shadow cursor-pointer" @click="$router.push('/student/notices')">
+        <div class="flex items-center gap-4">
+          <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl transition-colors bg-red-50 text-red-500 relative">
+            <el-icon><Bell /></el-icon>
+            <div v-show="unreadNoticeCount > 0" class="absolute -top-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white shadow-sm ring-2 ring-white">
+              {{ unreadNoticeCount > 99 ? '99+' : unreadNoticeCount }}
+            </div>
+          </div>
+          <div>
+            <h3 class="font-bold text-gray-800 tracking-wide text-base">缺勤提醒</h3>
+            <p class="text-xs mt-1" :class="unreadNoticeCount > 0 ? 'text-red-500 font-medium' : 'text-gray-500'">
+              {{ unreadNoticeCount > 0 ? `你有 ${unreadNoticeCount} 条未读提醒` : '暂无未读提醒' }}
+            </p>
           </div>
         </div>
         <div class="text-gray-300">

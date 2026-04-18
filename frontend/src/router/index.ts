@@ -90,6 +90,12 @@ const router = createRouter({
           name: 'student-attendance',
           component: () => import('../views/student/Attendance.vue'),
           meta: { title: '我的考勤' }
+        },
+        {
+          path: 'notices',
+          name: 'student-notices',
+          component: () => import('../views/student/Notices.vue'),
+          meta: { title: '缺勤提醒' }
         }
       ]
     },

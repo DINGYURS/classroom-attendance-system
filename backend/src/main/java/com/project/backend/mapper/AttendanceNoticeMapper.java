@@ -21,7 +21,13 @@ public interface AttendanceNoticeMapper {
     /**
      * 查询学生端通知列表。
      */
-    List<StudentNoticeVO> findByStudentId(@Param("studentId") Long studentId);
+    List<StudentNoticeVO> findByStudentId(@Param("studentId") Long studentId,
+                                          @Param("status") Integer status);
+
+    /**
+     * 统计学生端未读通知数。
+     */
+    Integer countUnreadByStudentId(@Param("studentId") Long studentId);
 
     /**
      * 根据 ID 查询通知。

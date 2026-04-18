@@ -73,8 +73,17 @@ public class StudentController {
      */
     @GetMapping("/notices")
     @Operation(summary = "获取学生通知", description = "获取当前学生收到的考勤提醒通知")
-    public Result<List<StudentNoticeVO>> getNoticeList() {
-        return Result.success(studentService.getNoticeList());
+    public Result<List<StudentNoticeVO>> getNoticeList(@RequestParam(required = false) Integer status) {
+        return Result.success(studentService.getNoticeList(status));
+    }
+
+    /**
+     * 获取学生端未读通知数
+     */
+    @GetMapping("/notices/unread-count")
+    @Operation(summary = "获取学生未读通知数", description = "获取当前学生未读的考勤提醒数量")
+    public Result<Integer> getUnreadNoticeCount() {
+        return Result.success(studentService.countUnreadNotices());
     }
 
     /**
