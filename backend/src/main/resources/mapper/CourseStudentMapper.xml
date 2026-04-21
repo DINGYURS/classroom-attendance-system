@@ -40,7 +40,7 @@
                 ELSE '未知'
             END AS gender,
             IFNULL(s.admin_class, '') AS className,
-            s.avatar_url AS avatarUrl
+            s.avatar_object_key AS avatarUrl
         FROM course_student cs
         INNER JOIN course c ON cs.course_id = c.course_id
         INNER JOIN student s ON cs.student_id = s.user_id
@@ -53,7 +53,7 @@
                 OR s.admin_class LIKE CONCAT('%', #{keyword}, '%')
             )
         </if>
-        ORDER BY s.student_number ASC, s.user_id ASC
+        ORDER BY s.student_number , s.user_id
     </select>
 
     <select id="pageTeacherStudents" resultType="com.project.backend.pojo.vo.TeacherStudentTableVO">
@@ -71,7 +71,7 @@
                 ELSE '未知'
             END AS gender,
             IFNULL(s.admin_class, '') AS className,
-            s.avatar_url AS avatarUrl
+            s.avatar_object_key AS avatarUrl
         FROM course_student cs
         INNER JOIN course c ON cs.course_id = c.course_id
         INNER JOIN student s ON cs.student_id = s.user_id
@@ -85,7 +85,7 @@
                 OR s.admin_class LIKE CONCAT('%', #{keyword}, '%')
             )
         </if>
-        ORDER BY c.create_time DESC, c.course_id DESC, s.student_number ASC
+        ORDER BY c.create_time DESC, c.course_id DESC, s.student_number
     </select>
 
     <insert id="batchInsert">

@@ -5,7 +5,7 @@
     <resultMap id="BaseResultMap" type="com.project.backend.pojo.entity.AttendanceSession">
         <id column="session_id" property="sessionId"/>
         <result column="course_id" property="courseId"/>
-        <result column="source_images" property="sourceImages"/>
+        <result column="image_object_keys" property="imageObjectKeys"/>
         <result column="total_student" property="totalStudent"/>
         <result column="actual_student" property="actualStudent"/>
         <result column="start_time" property="startTime"/>
@@ -154,14 +154,14 @@
     </select>
 
     <insert id="insert" useGeneratedKeys="true" keyProperty="sessionId">
-        INSERT INTO attendance_session (course_id, source_images, total_student, actual_student, start_time)
-        VALUES (#{courseId}, #{sourceImages}, #{totalStudent}, #{actualStudent}, #{startTime})
+        INSERT INTO attendance_session (course_id, image_object_keys, total_student, actual_student, start_time)
+        VALUES (#{courseId}, #{imageObjectKeys}, #{totalStudent}, #{actualStudent}, #{startTime})
     </insert>
 
     <update id="update">
         UPDATE attendance_session
         <set>
-            <if test="sourceImages != null">source_images = #{sourceImages},</if>
+            <if test="imageObjectKeys != null">image_object_keys = #{imageObjectKeys},</if>
             <if test="totalStudent != null">total_student = #{totalStudent},</if>
             <if test="actualStudent != null">actual_student = #{actualStudent},</if>
         </set>

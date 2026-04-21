@@ -74,8 +74,8 @@ public class StudentServiceImpl implements StudentService {
         }
 
         String avatarUrl = null;
-        if (student.getAvatarUrl() != null) {
-            avatarUrl = minioService.getFileUrl(student.getAvatarUrl());
+        if (student.getAvatarObjectKey() != null) {
+            avatarUrl = minioService.getFileUrl(student.getAvatarObjectKey());
         }
 
         return StudentVO.builder()
@@ -104,8 +104,7 @@ public class StudentServiceImpl implements StudentService {
         String objectKey = minioService.uploadFile(file, "faces");
         log.info("学生 {} 上传人脸图片成功: {}", userId, objectKey);
 
-        String imageUrl = minioService.getFileUrl(objectKey);
-        String featureVector = pythonServiceClient.extractFaceFeature(imageUrl);
+        String featureVector = pythonServiceClient.extractFaceFeature(objectKey);
         if (featureVector == null || featureVector.isEmpty()) {
             minioService.deleteFile(objectKey);
             throw new BusinessException("人脸特征提取失败，请确保图片中有清晰的人脸");

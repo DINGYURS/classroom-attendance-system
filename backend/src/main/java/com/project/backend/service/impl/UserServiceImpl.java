@@ -82,12 +82,12 @@ public class UserServiceImpl implements UserService {
         Student student = null;
         if (RoleConstants.ROLE_STUDENT.equals(user.getRole())) {
             student = studentMapper.findByUserId(user.getUserId());
-            if (student != null && student.getAvatarUrl() != null) {
+            if (student != null && student.getAvatarObjectKey() != null) {
                 try {
-                    avatarUrl = minioService.getFileUrl(student.getAvatarUrl());
+                    avatarUrl = minioService.getFileUrl(student.getAvatarObjectKey());
                 } catch (Exception e) {
                     log.warn("获取学生头像失败，跳过头像回填以保证登录流程继续: userId={}, objectKey={}",
-                            user.getUserId(), student.getAvatarUrl(), e);
+                            user.getUserId(), student.getAvatarObjectKey(), e);
                 }
             }
         }

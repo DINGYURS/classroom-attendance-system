@@ -12,14 +12,14 @@ class ApiResponse(BaseModel):
 
 class ExtractRequest(BaseModel):
     """单人人脸特征提取请求"""
-    imageUrl: str = Field(..., description="MinIO 预签名图片 URL")
+    objectKey: str = Field(..., description="MinIO 对象键")
 
 
 # ── /api/face/detect ───────────────────────────────────────────────────────────
 
 class DetectRequest(BaseModel):
     """合照人脸检测请求（考勤用）"""
-    imageUrls: List[str] = Field(..., description="合照 URL 列表")
+    objectKeys: List[str] = Field(..., description="合照对象键列表")
 
 
 class FaceInfo(BaseModel):
@@ -33,12 +33,3 @@ class DetectResponse(BaseModel):
     """单张图片的所有人脸检测结果"""
     imageIndex: int
     faces: List[FaceInfo]
-
-
-# ── /health ────────────────────────────────────────────────────────────────────
-
-class HealthResponse(BaseModel):
-    status: str
-    models_loaded: bool
-    yolo_loaded: bool
-    insightface_loaded: bool

@@ -34,14 +34,14 @@ public class PythonServiceClientImpl implements PythonServiceClient {
     // ── /api/face/extract ───────────────────────────────────────────────────────
 
     @Override
-    public String extractFaceFeature(String imageUrl) {
+    public String extractFaceFeature(String objectKey) {
         String url = pythonServiceProperties.getBaseUrl() + "/api/face/extract";
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             Map<String, String> request = new HashMap<>();
-            request.put("imageUrl", imageUrl);
+            request.put("objectKey", objectKey);
 
             ResponseEntity<String> response = restTemplate.postForEntity(
                     url, new HttpEntity<>(request, headers), String.class);
@@ -64,7 +64,7 @@ public class PythonServiceClientImpl implements PythonServiceClient {
     // ── /api/face/detect ────────────────────────────────────────────────────────
 
     @Override
-    public List<FaceDetectImageResultDTO> detectFaces(List<String> imageUrls) {
+    public List<FaceDetectImageResultDTO> detectFaces(List<String> objectKeys) {
         String url = pythonServiceProperties.getBaseUrl() + "/api/face/detect";
         List<FaceDetectImageResultDTO> imageResults = new ArrayList<>();
 
@@ -73,7 +73,7 @@ public class PythonServiceClientImpl implements PythonServiceClient {
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             Map<String, Object> request = new HashMap<>();
-            request.put("imageUrls", imageUrls);
+            request.put("objectKeys", objectKeys);
 
             ResponseEntity<String> response = restTemplate.postForEntity(
                     url, new HttpEntity<>(request, headers), String.class);

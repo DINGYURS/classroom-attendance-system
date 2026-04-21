@@ -130,7 +130,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
         AttendanceSession session = AttendanceSession.builder()
                 .courseId(startDTO.getCourseId())
-                .sourceImages(JSON.toJSONString(new ArrayList<>()))
+                .imageObjectKeys(JSON.toJSONString(new ArrayList<>()))
                 .totalStudent(studentIds.size())
                 .actualStudent(0)
                 .startTime(LocalDateTime.now())
@@ -179,12 +179,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             throw new BusinessException("未提供合照图片");
         }
 
-        List<String> imageUrls = new ArrayList<>();
-        for (String key : recognitionDTO.getImageKeys()) {
-            imageUrls.add(minioService.getFileUrl(key));
-        }
-
-        List<FaceDetectImageResultDTO> detectResults = pythonServiceClient.detectFaces(imageUrls);
+        List<FaceDetectImageResultDTO> detectResults = pythonServiceClient.detectFaces(recognitionDTO.getImageKeys());
         int totalDetectedFaces = detectResults.stream()
                 .map(FaceDetectImageResultDTO::getFaces)
                 .filter(Objects::nonNull)
@@ -338,7 +333,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             attendanceDetectionMapper.batchInsert(detections);
         }
 
-        session.setSourceImages(JSON.toJSONString(recognitionDTO.getImageKeys()));
+        session.setImageObjectKeys(JSON.toJSONString(recognitionDTO.getImageKeys()));
         session.setActualStudent(matchedStudentIds.size());
         session.setTotalStudent(studentIds.size());
         attendanceSessionMapper.update(session);
@@ -380,7 +375,7 @@ public class AttendanceServiceImpl implements AttendanceService {
             throw new BusinessException(MessageConstants.NO_PERMISSION);
         }
 
-        List<String> imageKeys = parseSourceImages(session.getSourceImages());
+        List<String> imageKeys = parseImageObjectKeys(session.getImageObjectKeys());
         List<AttendanceSessionImageVO> imageList = new ArrayList<>();
         for (int index = 0; index < imageKeys.size(); index++) {
             String objectKey = imageKeys.get(index);
@@ -1276,15 +1271,15 @@ public class AttendanceServiceImpl implements AttendanceService {
     /**
      * 解析会话原图列表。
      */
-    private List<String> parseSourceImages(String sourceImages) {
-        if (!StringUtils.hasText(sourceImages)) {
+    private List<String> parseImageObjectKeys(String imageObjectKeys) {
+        if (!StringUtils.hasText(imageObjectKeys)) {
             return new ArrayList<>();
         }
         try {
-            List<String> imageKeys = JSON.parseArray(sourceImages, String.class);
+            List<String> imageKeys = JSON.parseArray(imageObjectKeys, String.class);
             return imageKeys == null ? new ArrayList<>() : imageKeys;
         } catch (Exception e) {
-            log.warn("解析会话原图列表失败: sourceImages={}", sourceImages, e);
+            log.warn("解析会话合照对象键列表失败: imageObjectKeys={}", imageObjectKeys, e);
             return new ArrayList<>();
         }
     }

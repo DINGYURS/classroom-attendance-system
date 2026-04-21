@@ -37,9 +37,9 @@ public class Student implements Serializable {
     private Integer gender;
 
     /**
-     * 头像地址（MinIO）
+     * 头像对象键（MinIO）
      */
-    private String avatarUrl;
+    private String avatarObjectKey;
 
     /**
      * 人脸特征值（AES 加密密文）

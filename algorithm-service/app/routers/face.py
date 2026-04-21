@@ -36,7 +36,7 @@ async def extract_face_feature(request: ExtractRequest) -> ApiResponse:
         # 图片下载（含 HTTP I/O）也放到线程池，避免 httpx 同步客户端阻塞事件循环
         loop = asyncio.get_event_loop()
         image = await loop.run_in_executor(
-            _executor, downloader.download_image, request.imageUrl
+            _executor, downloader.download_image_by_object_key, request.objectKey
         )
 
         if image is None:
@@ -61,12 +61,12 @@ async def extract_face_feature(request: ExtractRequest) -> ApiResponse:
         return ApiResponse(code=0, msg=str(e), data=None)
 
 
-def _detect_single(downloader, engine, idx: int, image_url: str) -> DetectResponse:
+def _detect_single(downloader, engine, idx: int, object_key: str) -> DetectResponse:
     """同步函数：下载 + 推理单张图片，在线程池中执行"""
-    logger.info("[FACE-DETECT-201] start_image index=%d url=%s", idx, image_url)
-    image = downloader.download_image(image_url)
+    logger.info("[FACE-DETECT-201] start_image index=%d object_key=%s", idx, object_key)
+    image = downloader.download_image_by_object_key(object_key)
     if image is None:
-        logger.warning("[FACE-DETECT-202] download_failed index=%d url=%s", idx, image_url)
+        logger.warning("[FACE-DETECT-202] download_failed index=%d object_key=%s", idx, object_key)
         return DetectResponse(imageIndex=idx, faces=[])
 
     logger.info("[FACE-DETECT-203] download_ok index=%d image_shape=%s", idx, tuple(image.shape))
@@ -103,13 +103,13 @@ async def detect_faces(request: DetectRequest) -> ApiResponse:
         engine = get_face_engine()
         loop = asyncio.get_event_loop()
 
-        logger.info("[FACE-DETECT-205] request_start image_count=%d", len(request.imageUrls))
+        logger.info("[FACE-DETECT-205] request_start image_count=%d", len(request.objectKeys))
 
         # 每张图片串行处理（insightface 非线程安全，不并发）
         results: List[DetectResponse] = []
-        for idx, image_url in enumerate(request.imageUrls):
+        for idx, object_key in enumerate(request.objectKeys):
             result = await loop.run_in_executor(
-                _executor, _detect_single, downloader, engine, idx, image_url
+                _executor, _detect_single, downloader, engine, idx, object_key
             )
             results.append(result)
 

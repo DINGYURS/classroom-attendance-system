@@ -7,18 +7,18 @@
         <result column="student_number" property="studentNumber"/>
         <result column="admin_class" property="adminClass"/>
         <result column="gender" property="gender"/>
-        <result column="avatar_url" property="avatarUrl"/>
+        <result column="avatar_object_key" property="avatarObjectKey"/>
         <result column="feature_vector" property="featureVector"/>
     </resultMap>
 
     <select id="findByUserId" resultMap="BaseResultMap">
-        SELECT user_id, student_number, admin_class, gender, avatar_url, feature_vector
+        SELECT user_id, student_number, admin_class, gender, avatar_object_key, feature_vector
         FROM student
         WHERE user_id = #{userId}
     </select>
 
     <select id="findByUserIds" resultMap="BaseResultMap">
-        SELECT user_id, student_number, admin_class, gender, avatar_url, feature_vector
+        SELECT user_id, student_number, admin_class, gender, avatar_object_key, feature_vector
         FROM student
         WHERE user_id IN
         <foreach collection="userIds" item="userId" open="(" separator="," close=")">
@@ -44,8 +44,8 @@
     </select>
 
     <insert id="insert">
-        INSERT INTO student (user_id, student_number, admin_class, gender, avatar_url, feature_vector)
-        VALUES (#{userId}, #{studentNumber}, #{adminClass}, #{gender}, #{avatarUrl}, #{featureVector})
+        INSERT INTO student (user_id, student_number, admin_class, gender, avatar_object_key, feature_vector)
+        VALUES (#{userId}, #{studentNumber}, #{adminClass}, #{gender}, #{avatarObjectKey}, #{featureVector})
     </insert>
 
     <update id="update">
@@ -54,7 +54,7 @@
             <if test="studentNumber != null">student_number = #{studentNumber},</if>
             <if test="adminClass != null">admin_class = #{adminClass},</if>
             <if test="gender != null">gender = #{gender},</if>
-            <if test="avatarUrl != null">avatar_url = #{avatarUrl},</if>
+            <if test="avatarObjectKey != null">avatar_object_key = #{avatarObjectKey},</if>
             <if test="featureVector != null">feature_vector = #{featureVector},</if>
         </set>
         WHERE user_id = #{userId}
@@ -68,7 +68,7 @@
 
     <update id="updateFaceImageKey">
         UPDATE student
-        SET avatar_url = #{avatarUrl}
+        SET avatar_object_key = #{avatarObjectKey}
         WHERE user_id = #{userId}
     </update>
 

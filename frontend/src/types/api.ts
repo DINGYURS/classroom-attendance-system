@@ -431,14 +431,3 @@ export interface WarningNoticeSendDTO {
   title: string
   content: string
 }
-
-export interface StudentNoticeVO {
-  noticeId: number
-  courseName: string
-  title: string
-  content: string
-  absentCount: number
-  sendTime: string
-  isRead: boolean
-  readTime?: string
-}

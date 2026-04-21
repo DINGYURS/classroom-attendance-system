@@ -10,8 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import face
-from app.schemas import ApiResponse, HealthResponse
-
 logging.basicConfig(
     level=logging.DEBUG if settings.debug else logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -40,7 +38,7 @@ async def lifespan(app: FastAPI):
 
     try:
         from app.core.engine import get_face_engine
-        engine = get_face_engine()
+        get_face_engine()
         logger.info("Face detection and recognition models loaded successfully")
     except Exception as e:
         logger.error(f"Failed to load models: {e}")
@@ -67,39 +65,6 @@ app.add_middleware(
 )
 
 app.include_router(face.router)
-
-
-@app.get("/health")
-async def health_check() -> HealthResponse:
-    try:
-        from app.core.engine import get_face_engine
-        engine = get_face_engine()
-        
-        return HealthResponse(
-            status="healthy",
-            models_loaded=True,
-            yolo_loaded=engine._yolo_model is not None,
-            insightface_loaded=engine._face_analyzer is not None
-        )
-    except Exception:
-        return HealthResponse(
-            status="unhealthy",
-            models_loaded=False,
-            yolo_loaded=False,
-            insightface_loaded=False
-        )
-
-
-@app.get("/")
-async def root() -> ApiResponse:
-    return ApiResponse(
-        code=1,
-        msg="Face Recognition Algorithm Service is running",
-        data={
-            "name": settings.app_name,
-            "version": settings.app_version
-        }
-    )
 
 
 if __name__ == "__main__":

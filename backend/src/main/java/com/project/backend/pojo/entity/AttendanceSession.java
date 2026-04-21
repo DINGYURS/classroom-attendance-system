@@ -28,9 +28,9 @@ public class AttendanceSession implements Serializable {
     private Long courseId;
 
     /**
-     * 原始合照 URL 列表（JSON Array）
+     * 点名合照对象键列表（JSON Array）
      */
-    private String sourceImages;
+    private String imageObjectKeys;
 
     /**
      * 应到人数

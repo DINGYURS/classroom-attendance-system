@@ -19,7 +19,7 @@ create table student
     student_number varchar(32)  not null comment '学号',
     admin_class    varchar(64)  not null comment '行政班级(如: 计科225)',
     gender         tinyint      null comment '性别: 1-男, 2-女',
-    avatar_url     varchar(255) null comment '学生头像/人脸底库图(MinIO)',
+    avatar_object_key varchar(255) null comment '学生头像/人脸底库图对象键(MinIO)',
     feature_vector text         null comment '人脸特征值(AES加密密文)',
     constraint fk_student_user
         foreign key (user_id) references user (user_id)
@@ -57,7 +57,7 @@ create table attendance_session
     session_id     bigint auto_increment
         primary key,
     course_id      bigint                             not null comment '所属课程',
-    source_images  json                               not null comment '原始合照URL列表(JSON Array)',
+    image_object_keys json                            not null comment '点名合照的 MinIO 对象键列表(JSON Array)',
     total_student  int      default 0                 not null comment '应到人数',
     actual_student int      default 0                 not null comment '实到人数',
     start_time     datetime default CURRENT_TIMESTAMP null comment '点名时间',

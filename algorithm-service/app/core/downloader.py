@@ -1,9 +1,7 @@
 import logging
 from typing import Optional
-from urllib.parse import urlparse
 
 import cv2
-import httpx
 import numpy as np
 from minio import Minio
 
@@ -30,21 +28,24 @@ class ImageDownloader:
             logger.error(f"Failed to initialize MinIO client: {e}")
             self._minio_client = None
 
-    def download_image(self, image_url: str) -> Optional[np.ndarray]:
-        if self._is_minio_url(image_url):
-            return self._download_from_minio(image_url)
-        return self._download_from_http(image_url)
+    def download_image_by_object_key(self, object_key: str) -> Optional[np.ndarray]:
+        if self._minio_client is None:
+            logger.error("MinIO client not initialized")
+            return None
 
-    def _is_minio_url(self, url: str) -> bool:
-        """
-        判断是否为 MinIO 地址。
-        若 URL 携带查询参数（预签名 URL），直接走 HTTP 下载即可，无需 SDK。
-        """
-        parsed = urlparse(url)
-        if parsed.query:
-            return False
-        minio_host = settings.minio_endpoint.split(":")[0]
-        return minio_host in parsed.netloc or "minio" in parsed.netloc.lower()
+        if not object_key:
+            logger.error("Invalid MinIO object key: %s", object_key)
+            return None
+
+        try:
+            response = self._minio_client.get_object(settings.minio_bucket_name, object_key)
+            image_data = response.read()
+            response.close()
+            response.release_conn()
+            return self._decode_image(image_data, f"minio:{settings.minio_bucket_name}/{object_key}")
+        except Exception as e:
+            logger.error(f"Failed to download from MinIO by object key: {object_key}, error: {e}")
+            return None
 
     def _decode_image(self, image_bytes: bytes, source: str) -> Optional[np.ndarray]:
         nparr = np.frombuffer(image_bytes, np.uint8)
@@ -58,47 +59,6 @@ class ImageDownloader:
         # 本地手工测试脚本使用 cv2.imread()，返回的也是 BGR；服务端必须保持一致。
         logger.info("[FACE-DETECT-001] image_decoded source=%s image_shape=%s color_space=BGR", source, tuple(image.shape))
         return image
-
-    def _download_from_minio(self, url: str) -> Optional[np.ndarray]:
-        if self._minio_client is None:
-            logger.error("MinIO client not initialized")
-            return None
-
-        try:
-            parsed = urlparse(url)
-            path_parts = parsed.path.strip("/").split("/", 1)
-
-            if len(path_parts) == 2:
-                bucket_name, object_name = path_parts
-            else:
-                bucket_name = settings.minio_bucket_name
-                object_name = path_parts[0] if path_parts else ""
-
-            if not object_name:
-                logger.error(f"Invalid MinIO URL: {url}")
-                return None
-
-            response = self._minio_client.get_object(bucket_name, object_name)
-            image_data = response.read()
-            response.close()
-            response.release_conn()
-            return self._decode_image(image_data, f"minio:{bucket_name}/{object_name}")
-
-        except Exception as e:
-            logger.error(f"Failed to download from MinIO: {url}, error: {e}")
-            return None
-
-    def _download_from_http(self, url: str) -> Optional[np.ndarray]:
-        try:
-            with httpx.Client(timeout=30.0) as client:
-                response = client.get(url)
-                response.raise_for_status()
-                return self._decode_image(response.content, url)
-
-        except Exception as e:
-            logger.error(f"Failed to download from HTTP: {url}, error: {e}")
-            return None
-
 
 _downloader_instance: Optional[ImageDownloader] = None
 
