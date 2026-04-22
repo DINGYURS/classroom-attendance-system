@@ -148,10 +148,8 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Override
     public CourseStatisticsVO getCourseStatistics(Long courseId) {
-        Course course = courseMapper.findById(courseId);
-        if (course == null) {
-            return null;
-        }
+        Long teacherId = validateCurrentTeacher();
+        Course course = requireTeacherOwnedCourse(courseId, teacherId);
 
         Integer totalStudents = courseStudentMapper.countByCourseId(courseId);
         List<AttendanceSession> sessions = attendanceSessionMapper.findByCourseId(courseId);
@@ -197,6 +195,8 @@ public class StatisticsServiceImpl implements StatisticsService {
 
     @Override
     public List<StudentStatisticsVO> getStudentStatistics(Long courseId) {
+        Long teacherId = validateCurrentTeacher();
+        requireTeacherOwnedCourse(courseId, teacherId);
         List<Long> studentIds = courseStudentMapper.findStudentIdsByCourseId(courseId);
         if (studentIds.isEmpty()) {
             return new ArrayList<>();
@@ -274,6 +274,20 @@ public class StatisticsServiceImpl implements StatisticsService {
             throw new BusinessException(MessageConstants.NO_PERMISSION);
         }
         return teacherId;
+    }
+
+    /**
+     * 校验课程归属当前教师。
+     */
+    private Course requireTeacherOwnedCourse(Long courseId, Long teacherId) {
+        Course course = courseMapper.findById(courseId);
+        if (course == null) {
+            throw new BusinessException("课程不存在");
+        }
+        if (!teacherId.equals(course.getTeacherId())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+        return course;
     }
 
     /**

@@ -62,7 +62,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public Long createCourse(CourseDTO courseDTO) {
-        Long teacherId = BaseContext.getCurrentId();
+        Long teacherId = validateCurrentTeacher();
 
         Course course = Course.builder()
                 .courseName(courseDTO.getCourseName())
@@ -79,15 +79,8 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public void updateCourse(CourseDTO courseDTO) {
-        Long teacherId = BaseContext.getCurrentId();
-        Course existing = courseMapper.findById(courseDTO.getCourseId());
-
-        if (existing == null) {
-            throw new BusinessException("课程不存在");
-        }
-        if (!existing.getTeacherId().equals(teacherId)) {
-            throw new BusinessException(MessageConstants.NO_PERMISSION);
-        }
+        Long teacherId = validateCurrentTeacher();
+        requireTeacherOwnedCourse(courseDTO.getCourseId(), teacherId);
 
         Course course = Course.builder()
                 .courseId(courseDTO.getCourseId())
@@ -103,15 +96,8 @@ public class CourseServiceImpl implements CourseService {
     @Override
     @Transactional
     public void deleteCourse(Long courseId) {
-        Long teacherId = BaseContext.getCurrentId();
-        Course existing = courseMapper.findById(courseId);
-
-        if (existing == null) {
-            throw new BusinessException("课程不存在");
-        }
-        if (!existing.getTeacherId().equals(teacherId)) {
-            throw new BusinessException(MessageConstants.NO_PERMISSION);
-        }
+        Long teacherId = validateCurrentTeacher();
+        requireTeacherOwnedCourse(courseId, teacherId);
 
         courseStudentMapper.deleteByCourseId(courseId);
         courseMapper.deleteById(courseId);
@@ -121,7 +107,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public List<CourseVO> getMyCourses() {
-        Long teacherId = BaseContext.getCurrentId();
+        Long teacherId = validateCurrentTeacher();
         List<Course> courses = courseMapper.findByTeacherId(teacherId);
 
         List<CourseVO> result = new ArrayList<>();
@@ -144,10 +130,8 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public CourseVO getCourseDetail(Long courseId) {
-        Course course = courseMapper.findById(courseId);
-        if (course == null) {
-            throw new BusinessException("课程不存在");
-        }
+        Long teacherId = validateCurrentTeacher();
+        Course course = requireTeacherOwnedCourse(courseId, teacherId);
 
         Integer studentCount = courseStudentMapper.countByCourseId(courseId);
         List<String> classes = studentMapper.findAdminClassesByCourseId(courseId);
@@ -175,18 +159,20 @@ public class CourseServiceImpl implements CourseService {
         int pageSize = queryDTO.getPageSize() == null || queryDTO.getPageSize() < 1 ? 10 : Math.min(queryDTO.getPageSize(), 100);
         String keyword = normalizeKeyword(queryDTO.getKeyword());
 
-        Page<TeacherStudentTableVO> page = PageHelper.startPage(currentPage, pageSize);
-        List<TeacherStudentTableVO> records = courseStudentMapper.pageCourseStudents(courseId, keyword);
-        records.forEach(this::fillTeacherStudentAvatarUrl);
+        try (Page<TeacherStudentTableVO> page = PageHelper.startPage(currentPage, pageSize)) {
+            List<TeacherStudentTableVO> records = courseStudentMapper.pageCourseStudents(courseId, keyword);
+            records.forEach(this::fillTeacherStudentAvatarUrl);
 
-        return PageResult.<TeacherStudentTableVO>builder()
-                .total(page.getTotal())
-                .records(records)
-                .build();
+            return PageResult.<TeacherStudentTableVO>builder()
+                    .total(page.getTotal())
+                    .records(records)
+                    .build();
+        }
     }
 
     @Override
     public List<CourseStudentVO> getCourseStudents(Long courseId) {
+        validateTeacherCoursePermission(courseId);
         List<Long> studentIds = courseStudentMapper.findStudentIdsByCourseId(courseId);
         if (studentIds.isEmpty()) {
             return new ArrayList<>();
@@ -214,6 +200,7 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public void addStudentToCourse(Long courseId, Long studentId) {
+        validateTeacherCoursePermission(courseId);
         CourseStudent cs = CourseStudent.builder()
                 .courseId(courseId)
                 .studentId(studentId)
@@ -229,14 +216,15 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public void removeStudentFromCourse(Long courseId, Long studentId) {
+        validateTeacherCoursePermission(courseId);
         courseStudentMapper.delete(courseId, studentId);
         log.info("学生 {} 从课程 {} 移除", studentId, courseId);
     }
 
     /**
-     * 校验当前登录教师是否有权限访问指定课程。
+     * 校验当前登录用户必须为教师。
      */
-    private void validateTeacherCoursePermission(Long courseId) {
+    private Long validateCurrentTeacher() {
         Long teacherId = BaseContext.getCurrentId();
         User currentUser = teacherId == null ? null : userMapper.findById(teacherId);
         if (currentUser == null) {
@@ -245,7 +233,21 @@ public class CourseServiceImpl implements CourseService {
         if (!RoleConstants.ROLE_TEACHER.equals(currentUser.getRole())) {
             throw new BusinessException(MessageConstants.NO_PERMISSION);
         }
+        return teacherId;
+    }
 
+    /**
+     * 校验当前登录教师是否有权限访问指定课程。
+     */
+    private void validateTeacherCoursePermission(Long courseId) {
+        Long teacherId = validateCurrentTeacher();
+        requireTeacherOwnedCourse(courseId, teacherId);
+    }
+
+    /**
+     * 校验指定课程属于当前教师。
+     */
+    private Course requireTeacherOwnedCourse(Long courseId, Long teacherId) {
         Course course = courseMapper.findById(courseId);
         if (course == null) {
             throw new BusinessException("课程不存在");
@@ -253,6 +255,7 @@ public class CourseServiceImpl implements CourseService {
         if (!teacherId.equals(course.getTeacherId())) {
             throw new BusinessException(MessageConstants.NO_PERMISSION);
         }
+        return course;
     }
 
     /**

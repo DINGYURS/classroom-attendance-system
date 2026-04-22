@@ -72,9 +72,13 @@ public class WarningServiceImpl implements WarningService {
                         .build())
                 .toList();
 
-        List<String> classes = courseId == null
-                ? studentMapper.findAdminClassesByTeacherId(teacherId)
-                : studentMapper.findAdminClassesByCourseId(courseId);
+        List<String> classes;
+        if (courseId == null) {
+            classes = studentMapper.findAdminClassesByTeacherId(teacherId);
+        } else {
+            requireTeacherOwnedCourse(courseId, teacherId);
+            classes = studentMapper.findAdminClassesByCourseId(courseId);
+        }
 
         List<StatisticsOptionVO> classOptions = classes.stream()
                 .map(item -> StatisticsOptionVO.builder()
@@ -188,14 +192,24 @@ public class WarningServiceImpl implements WarningService {
      * 校验课程归属与学生选课范围。
      */
     private void validateCourseAndStudentScope(Long teacherId, Long courseId, Long studentId) {
-        Course course = courseMapper.findById(courseId);
-        if (course == null || !teacherId.equals(course.getTeacherId())) {
-            throw new BusinessException(MessageConstants.NO_PERMISSION);
-        }
+        requireTeacherOwnedCourse(courseId, teacherId);
 
         boolean matched = courseStudentMapper.findStudentIdsByCourseId(courseId).stream()
                 .anyMatch(id -> id.equals(studentId));
         if (!matched) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+    }
+
+    /**
+     * 校验课程归属当前教师。
+     */
+    private void requireTeacherOwnedCourse(Long courseId, Long teacherId) {
+        Course course = courseMapper.findById(courseId);
+        if (course == null) {
+            throw new BusinessException("课程不存在");
+        }
+        if (!teacherId.equals(course.getTeacherId())) {
             throw new BusinessException(MessageConstants.NO_PERMISSION);
         }
     }

@@ -116,12 +116,8 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     @Transactional
     public Long startAttendance(AttendanceStartDTO startDTO) {
-        Long teacherId = BaseContext.getCurrentId();
-
-        Course course = courseMapper.findById(startDTO.getCourseId());
-        if (course == null || !course.getTeacherId().equals(teacherId)) {
-            throw new BusinessException(MessageConstants.NO_PERMISSION);
-        }
+        Long teacherId = validateCurrentTeacher();
+        requireTeacherOwnedCourse(startDTO.getCourseId(), teacherId);
 
         List<Long> studentIds = courseStudentMapper.findStudentIdsByCourseId(startDTO.getCourseId());
         if (studentIds == null) {
@@ -156,10 +152,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public void endAttendance(Long sessionId) {
-        AttendanceSession session = attendanceSessionMapper.findById(sessionId);
-        if (session == null) {
-            throw new BusinessException("考勤会话不存在");
-        }
+        AttendanceSession session = validateTeacherSessionPermission(sessionId);
 
         List<AttendanceRecord> records = attendanceRecordMapper.findBySessionId(sessionId);
         session.setActualStudent(countActualStudents(records));
@@ -171,10 +164,7 @@ public class AttendanceServiceImpl implements AttendanceService {
     @Override
     @Transactional
     public List<RecognitionResultVO> recognizeFaces(FaceRecognitionDTO recognitionDTO) {
-        AttendanceSession session = attendanceSessionMapper.findById(recognitionDTO.getSessionId());
-        if (session == null) {
-            throw new BusinessException("考勤会话不存在");
-        }
+        AttendanceSession session = validateTeacherSessionPermission(recognitionDTO.getSessionId());
         if (recognitionDTO.getImageKeys() == null || recognitionDTO.getImageKeys().isEmpty()) {
             throw new BusinessException("未提供合照图片");
         }
@@ -344,10 +334,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public AttendanceSessionVO getSessionDetail(Long sessionId) {
-        AttendanceSession session = attendanceSessionMapper.findById(sessionId);
-        if (session == null) {
-            throw new BusinessException("考勤会话不存在");
-        }
+        AttendanceSession session = validateTeacherSessionPermission(sessionId);
 
         Course course = courseMapper.findById(session.getCourseId());
         List<AttendanceRecord> records = attendanceRecordMapper.findBySessionId(sessionId);
@@ -364,16 +351,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public AttendanceSessionAnnotationVO getSessionAnnotations(Long sessionId) {
-        Long teacherId = validateCurrentTeacher();
-        AttendanceSession session = attendanceSessionMapper.findById(sessionId);
-        if (session == null) {
-            throw new BusinessException("考勤会话不存在");
-        }
-
-        Course course = courseMapper.findById(session.getCourseId());
-        if (course == null || !teacherId.equals(course.getTeacherId())) {
-            throw new BusinessException(MessageConstants.NO_PERMISSION);
-        }
+        AttendanceSession session = validateTeacherSessionPermission(sessionId);
 
         List<String> imageKeys = parseImageObjectKeys(session.getImageObjectKeys());
         List<AttendanceSessionImageVO> imageList = new ArrayList<>();
@@ -470,6 +448,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public List<SessionRecordVO> getSessionRecords(Long sessionId) {
+        validateTeacherSessionPermission(sessionId);
         List<AttendanceRecord> records = attendanceRecordMapper.findBySessionId(sessionId);
         List<SessionRecordVO> result = new ArrayList<>();
 
@@ -495,6 +474,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public List<AttendanceSessionVO> getCourseAttendanceHistory(Long courseId) {
+        validateTeacherCoursePermission(courseId);
         List<AttendanceSession> sessions = attendanceSessionMapper.findByCourseId(courseId);
         Course course = courseMapper.findById(courseId);
 
@@ -516,10 +496,7 @@ public class AttendanceServiceImpl implements AttendanceService {
 
     @Override
     public void updateAttendanceStatus(AttendanceUpdateDTO updateDTO) {
-        AttendanceRecord record = attendanceRecordMapper.findById(updateDTO.getRecordId());
-        if (record == null) {
-            throw new BusinessException("考勤记录不存在");
-        }
+        AttendanceRecord record = validateTeacherRecordPermission(updateDTO.getRecordId());
 
         record.setStatus(updateDTO.getStatus());
         record.setUpdateType(2);
@@ -597,31 +574,32 @@ public class AttendanceServiceImpl implements AttendanceService {
 
         int currentPage = getCurrentPage(safeQuery);
         int pageSize = getPageSize(safeQuery);
-        Page<Long> page = PageHelper.startPage(currentPage, pageSize);
-        List<Long> sessionIds = attendanceSessionMapper.pageArchiveSessionIds(teacherId, safeQuery);
-        List<AttendanceArchiveSessionVO> pageRecords = new ArrayList<>();
-        if (sessionIds != null && !sessionIds.isEmpty()) {
-            Map<Long, AttendanceArchiveSessionVO> sessionMap = attendanceSessionMapper.listArchiveSessionsByIds(sessionIds)
-                    .stream()
-                    .collect(Collectors.toMap(AttendanceArchiveSessionVO::getId,
-                            session -> session,
-                            (left, right) -> left,
-                            LinkedHashMap::new));
-            for (Long sessionId : sessionIds) {
-                AttendanceArchiveSessionVO session = sessionMap.get(sessionId);
-                if (session != null) {
-                    pageRecords.add(session);
+        try (Page<Long> page = PageHelper.startPage(currentPage, pageSize)) {
+            List<Long> sessionIds = attendanceSessionMapper.pageArchiveSessionIds(teacherId, safeQuery);
+            List<AttendanceArchiveSessionVO> pageRecords = new ArrayList<>();
+            if (sessionIds != null && !sessionIds.isEmpty()) {
+                Map<Long, AttendanceArchiveSessionVO> sessionMap = attendanceSessionMapper.listArchiveSessionsByIds(sessionIds)
+                        .stream()
+                        .collect(Collectors.toMap(AttendanceArchiveSessionVO::getId,
+                                session -> session,
+                                (left, right) -> left,
+                                LinkedHashMap::new));
+                for (Long sessionId : sessionIds) {
+                    AttendanceArchiveSessionVO session = sessionMap.get(sessionId);
+                    if (session != null) {
+                        pageRecords.add(session);
+                    }
                 }
             }
-        }
 
-        return AttendanceArchivePageVO.builder()
-                .summary(summary)
-                .pageData(PageResult.<AttendanceArchiveSessionVO>builder()
-                        .total(page.getTotal())
-                        .records(pageRecords)
-                        .build())
-                .build();
+            return AttendanceArchivePageVO.builder()
+                    .summary(summary)
+                    .pageData(PageResult.<AttendanceArchiveSessionVO>builder()
+                            .total(page.getTotal())
+                            .records(pageRecords)
+                            .build())
+                    .build();
+        }
     }
 
     @Override
@@ -898,6 +876,61 @@ public class AttendanceServiceImpl implements AttendanceService {
     }
 
     /**
+     * 校验当前教师是否有权限访问指定课程。
+     */
+    private void validateTeacherCoursePermission(Long courseId) {
+        Long teacherId = validateCurrentTeacher();
+        requireTeacherOwnedCourse(courseId, teacherId);
+    }
+
+    /**
+     * 校验课程归属当前教师。
+     */
+    private void requireTeacherOwnedCourse(Long courseId, Long teacherId) {
+        Course course = courseMapper.findById(courseId);
+        if (course == null) {
+            throw new BusinessException("课程不存在");
+        }
+        if (!teacherId.equals(course.getTeacherId())) {
+            throw new BusinessException(MessageConstants.NO_PERMISSION);
+        }
+    }
+
+    /**
+     * 校验考勤会话归属当前教师。
+     */
+    private AttendanceSession validateTeacherSessionPermission(Long sessionId) {
+        if (sessionId == null) {
+            throw new BusinessException("考勤会话参数无效");
+        }
+
+        Long teacherId = validateCurrentTeacher();
+        AttendanceSession session = attendanceSessionMapper.findById(sessionId);
+        if (session == null) {
+            throw new BusinessException("考勤会话不存在");
+        }
+        requireTeacherOwnedCourse(session.getCourseId(), teacherId);
+        return session;
+    }
+
+    /**
+     * 校验考勤记录归属当前教师。
+     */
+    private AttendanceRecord validateTeacherRecordPermission(Long recordId) {
+        if (recordId == null) {
+            throw new BusinessException("考勤记录参数无效");
+        }
+
+        AttendanceRecord record = attendanceRecordMapper.findById(recordId);
+        if (record == null) {
+            throw new BusinessException("考勤记录不存在");
+        }
+
+        validateTeacherSessionPermission(record.getSessionId());
+        return record;
+    }
+
+    /**
      * 校验检测框归属当前教师。
      */
     private AttendanceDetection validateDetectionPermission(Long detectionId) {
@@ -905,21 +938,12 @@ public class AttendanceServiceImpl implements AttendanceService {
             throw new BusinessException("检测框参数无效");
         }
 
-        Long teacherId = validateCurrentTeacher();
         AttendanceDetection detection = attendanceDetectionMapper.findById(detectionId);
         if (detection == null) {
             throw new BusinessException("检测框不存在");
         }
 
-        AttendanceSession session = attendanceSessionMapper.findById(detection.getSessionId());
-        if (session == null) {
-            throw new BusinessException("考勤会话不存在");
-        }
-
-        Course course = courseMapper.findById(session.getCourseId());
-        if (course == null || !teacherId.equals(course.getTeacherId())) {
-            throw new BusinessException(MessageConstants.NO_PERMISSION);
-        }
+        validateTeacherSessionPermission(detection.getSessionId());
         return detection;
     }
 

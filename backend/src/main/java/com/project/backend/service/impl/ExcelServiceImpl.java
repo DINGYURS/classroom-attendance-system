@@ -144,6 +144,7 @@ public class ExcelServiceImpl implements ExcelService {
 
     @Override
     public List<AttendanceExportVO> exportAttendanceReport(Long courseId) {
+        validateCurrentTeacher();
         List<StudentStatisticsVO> statistics = statisticsService.getStudentStatistics(courseId);
 
         List<AttendanceExportVO> result = new ArrayList<>();

@@ -65,7 +65,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public StudentVO getCurrentStudentInfo() {
-        Long userId = BaseContext.getCurrentId();
+        Long userId = validateCurrentStudent();
         User user = userMapper.findById(userId);
         Student student = studentMapper.findByUserId(userId);
 
@@ -90,7 +90,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public void uploadFaceFeature(FaceFeatureDTO faceFeatureDTO) {
-        Long userId = BaseContext.getCurrentId();
+        Long userId = validateCurrentStudent();
         String encryptedFeature = AesUtils.encrypt(faceFeatureDTO.getFeatureVector());
         studentMapper.updateFeatureVector(userId, encryptedFeature);
 
@@ -99,7 +99,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public void registerFaceByImage(MultipartFile file) {
-        Long userId = BaseContext.getCurrentId();
+        Long userId = validateCurrentStudent();
 
         String objectKey = minioService.uploadFile(file, "faces");
         log.info("学生 {} 上传人脸图片成功: {}", userId, objectKey);
@@ -119,7 +119,7 @@ public class StudentServiceImpl implements StudentService {
 
     @Override
     public List<AttendanceRecordVO> getAttendanceRecords() {
-        Long userId = BaseContext.getCurrentId();
+        Long userId = validateCurrentStudent();
         List<AttendanceRecordVO> result = attendanceRecordMapper.findAttendanceDetailsByStudentId(userId);
         result.forEach(record -> {
             record.setStatusText(getStatusText(record.getStatus()));
@@ -174,14 +174,15 @@ public class StudentServiceImpl implements StudentService {
         int pageSize = queryDTO.getPageSize() == null || queryDTO.getPageSize() < 1 ? 10 : Math.min(queryDTO.getPageSize(), 100);
         String keyword = normalizeKeyword(queryDTO.getKeyword());
 
-        Page<TeacherStudentTableVO> page = PageHelper.startPage(currentPage, pageSize);
-        List<TeacherStudentTableVO> records = courseStudentMapper.pageTeacherStudents(teacherId, keyword);
-        records.forEach(this::fillTeacherStudentAvatarUrl);
+        try (Page<TeacherStudentTableVO> page = PageHelper.startPage(currentPage, pageSize)) {
+            List<TeacherStudentTableVO> records = courseStudentMapper.pageTeacherStudents(teacherId, keyword);
+            records.forEach(this::fillTeacherStudentAvatarUrl);
 
-        return PageResult.<TeacherStudentTableVO>builder()
-                .total(page.getTotal())
-                .records(records)
-                .build();
+            return PageResult.<TeacherStudentTableVO>builder()
+                    .total(page.getTotal())
+                    .records(records)
+                    .build();
+        }
     }
 
     @Override
