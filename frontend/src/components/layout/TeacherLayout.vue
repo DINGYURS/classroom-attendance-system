@@ -111,11 +111,20 @@ const activeMenu = computed(() => route.path)
       :class="isCollapse ? 'w-16' : 'w-64'"
     >
       <div class="h-16 flex items-center justify-center border-b border-gray-100">
-        <div v-if="!isCollapse" class="flex items-center gap-2 px-4 transition-opacity duration-300">
-          <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold">RC</div>
-          <span class="font-bold text-gray-800 text-lg whitespace-nowrap">智能考勤系统</span>
+        <div class="flex items-center justify-center gap-2 px-4 transition-all duration-300">
+          <img
+            src="@/assets/logo.webp"
+            alt="Logo"
+            class="object-contain transition-all duration-300"
+            :class="isCollapse ? 'h-10 w-10' : 'h-9 w-9'"
+          />
+          <span
+            v-show="!isCollapse"
+            class="font-bold text-gray-800 text-lg whitespace-nowrap"
+          >
+            智能考勤系统
+          </span>
         </div>
-        <div v-else class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-sm">RC</div>
       </div>
 
       <el-menu

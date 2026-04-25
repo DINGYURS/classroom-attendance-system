@@ -22,7 +22,7 @@ const handleCommand = (command: string) => {
     <header class="h-14 md:h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 shadow-xs sticky top-0 z-10 shrink-0">
       <!-- Logo & Title -->
       <div class="flex items-center gap-2" @click="router.push('/student/profile')" style="cursor: pointer;">
-        <div class="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-sm md:text-base">RC</div>
+        <img src="@/assets/logo.webp" alt="Logo" class="w-8 h-8 object-contain" />
         <span class="font-bold text-gray-800 text-base md:text-lg whitespace-nowrap">智能考勤系统</span>
       </div>
 

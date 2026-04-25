@@ -258,7 +258,7 @@ onMounted(() => {
             <el-icon><DataLine /></el-icon>
           </div>
           <div>
-            <h3 class="font-bold text-gray-800 tracking-wide text-base">考勤中心</h3>
+            <h3 class="font-bold text-gray-800 tracking-wide text-base">我的考勤</h3>
             <p class="text-xs text-gray-500 mt-1">查看详细历史记录与学期统计</p>
           </div>
         </div>
