@@ -72,9 +72,13 @@ public class UserServiceImpl implements UserService {
         claims.put(JwtConstants.CLAIMS_USERNAME, user.getUsername());
         claims.put(JwtConstants.CLAIMS_ROLE, user.getRole());
 
+        long tokenTtl = Boolean.TRUE.equals(userLoginDTO.getRememberMe()) && jwtProperties.getRememberTtl() != null
+                ? jwtProperties.getRememberTtl()
+                : jwtProperties.getAdminTtl();
+
         String token = JwtUtils.createJwt(
                 jwtProperties.getAdminSecretKey(),
-                jwtProperties.getAdminTtl(),
+                tokenTtl,
                 claims
         );
 

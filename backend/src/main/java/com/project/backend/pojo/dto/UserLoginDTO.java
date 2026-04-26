@@ -23,4 +23,7 @@ public class UserLoginDTO implements Serializable {
 
     @Schema(description = "密码", example = "123456")
     private String password;
+
+    @Schema(description = "是否记住登录状态", example = "true")
+    private Boolean rememberMe;
 }

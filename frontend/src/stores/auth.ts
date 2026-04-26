@@ -1,7 +1,20 @@
 import { defineStore } from 'pinia'
+import type { StorageLike } from 'pinia-plugin-persistedstate'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { UserLoginVO } from "@/types/api"
+
+const authPersistStorage: StorageLike = {
+  getItem: (key) => sessionStorage.getItem(key) || localStorage.getItem(key),
+  setItem: (key, value) => {
+    const state = JSON.parse(value)
+    const targetStorage = state.rememberMe ? localStorage : sessionStorage
+    const staleStorage = state.rememberMe ? sessionStorage : localStorage
+
+    staleStorage.removeItem(key)
+    targetStorage.setItem(key, value)
+  }
+}
 
 export const useAuthStore = defineStore('user', () => {
   const router = useRouter()
@@ -16,6 +29,7 @@ export const useAuthStore = defineStore('user', () => {
     token: "",
     adminClass: "",
   })
+  const rememberMe = ref(false)
 
   // 2. 权限计算属性 (参考 auth.ts)
   const isLoggedIn = computed(() => !!userInfo.value.token)
@@ -23,7 +37,8 @@ export const useAuthStore = defineStore('user', () => {
   const isFaceRegistered = computed(() => !!userInfo.value.avatarUrl)
 
   // 3. 操作方法
-  const loginSuccess = (data: UserLoginVO) => {
+  const loginSuccess = (data: UserLoginVO, shouldRemember = false) => {
+    rememberMe.value = shouldRemember
     userInfo.value = data
   }
 
@@ -33,10 +48,13 @@ export const useAuthStore = defineStore('user', () => {
 
   const logout = () => {
     userInfo.value = {} as UserLoginVO
+    rememberMe.value = false
     router.replace('/login')
   }
 
-  return { userInfo, isLoggedIn, isTeacher, isFaceRegistered, loginSuccess, updateUserInfo, logout }
+  return { userInfo, rememberMe, isLoggedIn, isTeacher, isFaceRegistered, loginSuccess, updateUserInfo, logout }
 }, {
-  persist: true
+  persist: {
+    storage: authPersistStorage
+  }
 })

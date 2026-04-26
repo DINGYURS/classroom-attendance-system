@@ -58,7 +58,8 @@ logging:
 rollcallsystem:
   jwt:
     admin-secret-key: RollCallSystemJasminum-2026-2-10
-    admin-ttl: 86400000
+    admin-ttl: 7200000
+    remember-ttl: 604800000
     admin-token-name: token
   minio:
     endpoint: ${rollcallsystem.minio.endpoint}

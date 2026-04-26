@@ -9,6 +9,7 @@ export interface Result<T> {
 export interface UserLoginDTO {
   username?: string
   password?: string
+  rememberMe?: boolean
 }
 
 export interface UserLoginVO {

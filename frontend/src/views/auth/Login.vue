@@ -18,7 +18,8 @@ const activeTab = ref('student') // 'student' or 'teacher' (used for Registratio
 // Login Form
 const loginForm = reactive<UserLoginDTO>({
   username: '',
-  password: ''
+  password: '',
+  rememberMe: false
 })
 
 // Register Form
@@ -49,8 +50,7 @@ const handleLogin = async () => {
   isLoading.value = true
   try {
     const res = await login(loginForm)
-    console.log(res)
-    authStore.loginSuccess(res.data)
+    authStore.loginSuccess(res.data, !!loginForm.rememberMe)
     ElMessage.success('登录成功')
     
     // Redirect based on role
@@ -92,7 +92,6 @@ const handleRegister = async () => {
   try {
     // Prepare DTO (remove confirmPassword)
     const { confirmPassword, ...dto } = registerForm
-    console.log(dto)
     await register(dto)
     
     ElMessage.success('注册成功，请登录')
@@ -287,7 +286,7 @@ const handleRegister = async () => {
 
           <!-- Login Only: Remember & Forgot -->
           <div v-if="!isRegister" class="flex items-center justify-between text-sm">
-            <el-checkbox>记住我</el-checkbox>
+            <el-checkbox v-model="loginForm.rememberMe">记住我</el-checkbox>
             <a href="#" class="text-blue-600 hover:text-blue-700 font-medium">忘记密码?</a>
           </div>
 

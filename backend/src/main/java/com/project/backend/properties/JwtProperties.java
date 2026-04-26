@@ -23,6 +23,11 @@ public class JwtProperties {
     private Long adminTtl;
 
     /**
+     * 勾选记住我后的过期时间（毫秒）
+     */
+    private Long rememberTtl;
+
+    /**
      * 管理端令牌名称
      */
     private String adminTokenName;
