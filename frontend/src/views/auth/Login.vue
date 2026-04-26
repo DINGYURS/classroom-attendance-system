@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { onMounted, ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { User, Lock, VideoCamera, School, Male, Female, Postcard, Key } from '@element-plus/icons-vue'
+import { User, Lock, VideoCamera, School, Male, Female, Postcard, Key, Refresh } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { useAuthStore } from '@/stores/auth'
-import { login, register } from '@/api/auth'
+import { getCaptcha, login, register } from '@/api/auth'
 import type { UserLoginDTO, UserRegisterDTO } from '@/types/api'
 
 const router = useRouter()
@@ -19,6 +19,8 @@ const activeTab = ref('student') // 'student' or 'teacher' (used for Registratio
 const loginForm = reactive<UserLoginDTO>({
   username: '',
   password: '',
+  captchaKey: '',
+  captchaCode: '',
   rememberMe: false
 })
 
@@ -36,14 +38,31 @@ const registerForm = reactive<UserRegisterDTO & { confirmPassword?: string }>({
 // Toggle Mode
 const toggleMode = () => {
   isRegister.value = !isRegister.value
-  // Reset forms/errors if needed
+  if (!isRegister.value) {
+    refreshCaptcha()
+  }
 }
 
+// 刷新验证码
+const refreshCaptcha = async () => {
+  try {
+    const res = await getCaptcha()
+    loginForm.captchaKey = res.data.captchaKey
+    loginForm.captchaCode = ''
+    captchaImage.value = res.data.captchaImage
+  } catch (error: any) {
+    console.error(error)
+  }
+}
 
 // 处理登录
 const handleLogin = async () => {
   if (!loginForm.username || !loginForm.password) {
     ElMessage.warning('请输入完整账号密码')
+    return
+  }
+  if (!loginForm.captchaCode) {
+    ElMessage.warning('请输入验证码')
     return
   }
 
@@ -62,6 +81,7 @@ const handleLogin = async () => {
   } catch (error: any) {
     // Error handled in interceptor or here if re-thrown
     console.error(error)
+    refreshCaptcha()
   } finally {
     isLoading.value = false
   }
@@ -102,6 +122,12 @@ const handleRegister = async () => {
     isLoading.value = false
   }
 }
+
+const captchaImage = ref('')
+
+onMounted(() => {
+  refreshCaptcha()
+})
 </script>
 
 <template>
@@ -268,6 +294,29 @@ const handleRegister = async () => {
               size="large"
               @keyup.enter="handleLogin"
             />
+          </div>
+
+          <!-- Login Only: Captcha -->
+          <div v-if="!isRegister">
+            <label class="block text-sm font-medium text-gray-700 mb-1.5 ml-1">验证码</label>
+            <div class="flex gap-3">
+              <el-input
+                v-model="loginForm.captchaCode"
+                :prefix-icon="Key"
+                placeholder="请输入验证码"
+                maxlength="4"
+                size="large"
+                @keyup.enter="handleLogin"
+              />
+              <button
+                type="button"
+                class="h-10 w-28 shrink-0 rounded-md border border-gray-200 bg-gray-50 overflow-hidden flex items-center justify-center"
+                @click="refreshCaptcha"
+              >
+                <img v-if="captchaImage" :src="captchaImage" class="h-full w-full object-cover" alt="验证码" />
+                <el-icon v-else class="text-gray-400"><Refresh /></el-icon>
+              </button>
+            </div>
           </div>
 
            <!-- Register Only: Confirm Password -->

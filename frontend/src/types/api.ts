@@ -9,7 +9,14 @@ export interface Result<T> {
 export interface UserLoginDTO {
   username?: string
   password?: string
+  captchaKey?: string
+  captchaCode?: string
   rememberMe?: boolean
+}
+
+export interface CaptchaVO {
+  captchaKey: string
+  captchaImage: string
 }
 
 export interface UserLoginVO {

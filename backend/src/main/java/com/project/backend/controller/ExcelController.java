@@ -14,7 +14,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
+import org.springframework.util.StreamUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
@@ -38,6 +41,8 @@ import java.util.List;
 @Tag(name = "Excel接口", description = "Excel 导入导出相关接口")
 public class ExcelController {
 
+    private static final String STUDENT_IMPORT_TEMPLATE_PATH = "template.xlsx";
+
     @Autowired
     private ExcelService excelService;
 
@@ -50,6 +55,26 @@ public class ExcelController {
         log.info("导入学生名单: fileName={}", file.getOriginalFilename());
         String result = excelService.importStudents(file);
         return Result.success(result);
+    }
+
+    /**
+     * 下载学生名单导入模板
+     */
+    @GetMapping("/template/students")
+    @Operation(summary = "下载学生名单导入模板", description = "下载教师端学生名单导入模板")
+    public void downloadStudentImportTemplate(HttpServletResponse response) throws IOException {
+        log.info("下载学生名单导入模板");
+
+        ClassPathResource template = new ClassPathResource(STUDENT_IMPORT_TEMPLATE_PATH);
+        response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setCharacterEncoding("utf-8");
+        response.setContentLengthLong(template.contentLength());
+        String fileName = URLEncoder.encode("学生名单导入模板", StandardCharsets.UTF_8).replaceAll("\\+", "%20");
+        response.setHeader("Content-disposition", "attachment;filename*=utf-8''" + fileName + ".xlsx");
+
+        try (InputStream inputStream = template.getInputStream()) {
+            StreamUtils.copy(inputStream, response.getOutputStream());
+        }
     }
 
     /**

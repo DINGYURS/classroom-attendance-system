@@ -1,6 +1,10 @@
 package com.project.backend.service.impl;
 
+import cn.hutool.captcha.CaptchaUtil;
+import cn.hutool.captcha.LineCaptcha;
+import cn.hutool.captcha.generator.RandomGenerator;
 import cn.hutool.crypto.digest.DigestUtil;
+import cn.hutool.core.util.IdUtil;
 import com.project.backend.constant.JwtConstants;
 import com.project.backend.constant.MessageConstants;
 import com.project.backend.constant.RoleConstants;
@@ -16,6 +20,7 @@ import com.project.backend.pojo.dto.UserRegisterDTO;
 import com.project.backend.pojo.entity.Student;
 import com.project.backend.pojo.entity.Teacher;
 import com.project.backend.pojo.entity.User;
+import com.project.backend.pojo.vo.CaptchaVO;
 import com.project.backend.pojo.vo.UserLoginVO;
 import com.project.backend.properties.JwtProperties;
 import com.project.backend.service.MinioService;
@@ -23,10 +28,13 @@ import com.project.backend.service.UserService;
 import com.project.backend.utils.JwtUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,6 +44,10 @@ import java.util.Map;
 @Slf4j
 @Service
 public class UserServiceImpl implements UserService {
+
+    private static final String CAPTCHA_PREFIX = "login:captcha:";
+    private static final String CAPTCHA_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+    private static final long CAPTCHA_TTL_MINUTES = 5;
 
     @Autowired
     private UserMapper userMapper;
@@ -52,10 +64,34 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private MinioService minioService;
 
+    @Autowired
+    private StringRedisTemplate stringRedisTemplate;
+
+    @Override
+    public CaptchaVO generateCaptcha() {
+        LineCaptcha captcha = CaptchaUtil.createLineCaptcha(120, 40, 4, 20);
+        captcha.setGenerator(new RandomGenerator(CAPTCHA_CHARS, 4));
+        captcha.createCode();
+
+        String captchaKey = IdUtil.simpleUUID();
+        stringRedisTemplate.opsForValue().set(
+                CAPTCHA_PREFIX + captchaKey,
+                captcha.getCode().toLowerCase(),
+                CAPTCHA_TTL_MINUTES,
+                TimeUnit.MINUTES
+        );
+
+        return CaptchaVO.builder()
+                .captchaKey(captchaKey)
+                .captchaImage(captcha.getImageBase64Data())
+                .build();
+    }
+
     @Override
     public UserLoginVO login(UserLoginDTO userLoginDTO) {
         String username = userLoginDTO.getUsername();
         String password = userLoginDTO.getPassword();
+        validateCaptcha(userLoginDTO.getCaptchaKey(), userLoginDTO.getCaptchaCode());
 
         User user = userMapper.findByUsername(username);
         if (user == null) {
@@ -105,6 +141,19 @@ public class UserServiceImpl implements UserService {
                 .adminClass(student != null ? student.getAdminClass() : null)
                 .token(token)
                 .build();
+    }
+
+    private void validateCaptcha(String captchaKey, String captchaCode) {
+        if (!StringUtils.hasText(captchaKey) || !StringUtils.hasText(captchaCode)) {
+            throw new BusinessException(MessageConstants.CAPTCHA_ERROR);
+        }
+
+        String redisKey = CAPTCHA_PREFIX + captchaKey;
+        String cacheCode = stringRedisTemplate.opsForValue().get(redisKey);
+        stringRedisTemplate.delete(redisKey);
+        if (!StringUtils.hasText(cacheCode) || !cacheCode.equals(captchaCode.trim().toLowerCase())) {
+            throw new BusinessException(MessageConstants.CAPTCHA_ERROR);
+        }
     }
 
     @Override

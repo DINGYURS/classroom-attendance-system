@@ -13,12 +13,19 @@ import {
   School
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { downloadTeacherStudentList, getTeacherStudentAttendanceRecords, getTeacherStudentPage, importTeacherStudentList } from '@/api/teacher'
+import {
+  downloadTeacherStudentList,
+  downloadTeacherStudentTemplate,
+  getTeacherStudentAttendanceRecords,
+  getTeacherStudentPage,
+  importTeacherStudentList
+} from '@/api/teacher'
 import type { AttendanceRecordVO, TeacherStudentTableVO } from '@/types/api'
 
 const loading = ref(false)
 const importing = ref(false)
 const exporting = ref(false)
+const templateDownloading = ref(false)
 const tableData = ref<TeacherStudentTableVO[]>([])
 
 const searchQuery = ref('')
@@ -84,6 +91,25 @@ const handleSizeChange = () => {
 
 const triggerImport = () => {
   fileInputRef.value?.click()
+}
+
+const handleTemplateDownload = async () => {
+  templateDownloading.value = true
+  try {
+    const response = await downloadTeacherStudentTemplate()
+
+    const blob = new Blob([response.data], {
+      type: response.headers['content-type'] || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
+    const fileName = extractFileName(response.headers['content-disposition']) || '学生名单导入模板.xlsx'
+    downloadBlob(blob, fileName)
+    ElMessage.success('模板下载成功')
+  } catch (error) {
+    console.error(error)
+    ElMessage.error('模板下载失败')
+  } finally {
+    templateDownloading.value = false
+  }
 }
 
 const handleFileChange = async (event: Event) => {
@@ -286,6 +312,15 @@ onMounted(() => {
             @change="handleFileChange"
           />
           <el-button
+            :icon="Download"
+            plain
+            :loading="templateDownloading"
+            class="w-full md:w-auto mx-0! md:mx-0!"
+            @click="handleTemplateDownload"
+          >
+            下载模板
+          </el-button>
+          <el-button
             type="success"
             :icon="Upload"
             :loading="importing"
@@ -307,7 +342,7 @@ onMounted(() => {
       </div>
 
       <div class="text-sm text-gray-500 bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-3 leading-6">
-        导入模板列顺序：课程名称、学期时间、学生学号、真实姓名、性别、行政班级。导出时会按当前搜索条件导出全部匹配名单
+        请先下载模板并按模板填写后再导入名单，列顺序：课程名称、学期时间、学生学号、真实姓名、性别、行政班级。导出时会按当前搜索条件导出全部匹配名单
       </div>
     </div>
 

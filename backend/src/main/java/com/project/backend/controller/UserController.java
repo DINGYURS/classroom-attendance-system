@@ -5,6 +5,7 @@ import com.project.backend.pojo.dto.TeacherUpdateDTO;
 import com.project.backend.pojo.dto.UserLoginDTO;
 import com.project.backend.pojo.dto.UserRegisterDTO;
 import com.project.backend.pojo.result.Result;
+import com.project.backend.pojo.vo.CaptchaVO;
 import com.project.backend.pojo.vo.UserLoginVO;
 import com.project.backend.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,6 +29,16 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    /**
+     * 获取登录验证码
+     */
+    @PostMapping("/captcha")
+    @Operation(summary = "获取登录验证码", description = "生成四位字母或数字验证码")
+    public Result<CaptchaVO> generateCaptcha() {
+        CaptchaVO captchaVO = userService.generateCaptcha();
+        return Result.success(captchaVO);
+    }
 
     /**
      * 用户登录

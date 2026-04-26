@@ -4,12 +4,20 @@ import com.project.backend.pojo.dto.UserLoginDTO;
 import com.project.backend.pojo.dto.UserRegisterDTO;
 import com.project.backend.pojo.dto.StudentUpdateDTO;
 import com.project.backend.pojo.dto.TeacherUpdateDTO;
+import com.project.backend.pojo.vo.CaptchaVO;
 import com.project.backend.pojo.vo.UserLoginVO;
 
 /**
  * 用户服务接口
  */
 public interface UserService {
+
+    /**
+     * 生成登录验证码
+     *
+     * @return 验证码信息
+     */
+    CaptchaVO generateCaptcha();
 
     /**
      * 用户登录

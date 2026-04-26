@@ -15,11 +15,12 @@ spring:
     url: jdbc:mysql://${rollcallsystem.datasource.host}:${rollcallsystem.datasource.port}/${rollcallsystem.datasource.database}?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
     username: ${rollcallsystem.datasource.username}
     password: ${rollcallsystem.datasource.password}
-  # redis:
-  #   host: ${sky.redis.host}
-  #   port: ${sky.redis.port}
-  #   database: ${sky.redis.database}
-  #   timeout: 5000             # Redis
+  data:
+    redis:
+      host: ${rollcallsystem.redis.host}
+      port: ${rollcallsystem.redis.port}
+      database: ${rollcallsystem.redis.database}
+      timeout: 5000
 
 springdoc:
   api-docs:

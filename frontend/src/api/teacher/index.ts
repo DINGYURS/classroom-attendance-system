@@ -63,3 +63,17 @@ export function downloadTeacherStudentList(params: TeacherStudentPageQuery) {
     }
   })
 }
+
+/**
+ * 下载教师端学生名单导入模板
+ */
+export function downloadTeacherStudentTemplate() {
+  const authStore = useAuthStore()
+  return axios.get('/api/excel/template/students', {
+    responseType: 'blob',
+    timeout: 30000,
+    headers: {
+      token: authStore.userInfo.token
+    }
+  })
+}
