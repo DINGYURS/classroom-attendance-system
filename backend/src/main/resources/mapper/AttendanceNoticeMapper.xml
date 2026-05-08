@@ -28,7 +28,7 @@
         SELECT
             n.notice_id AS noticeId,
             n.course_id AS courseId,
-            IFNULL(c.course_name, '综合提醒') AS courseName,
+            c.course_name AS courseName,
             n.title AS title,
             n.content AS content,
             n.absent_count AS absentCount,
@@ -36,7 +36,7 @@
             CASE WHEN n.read_status = 1 THEN TRUE ELSE FALSE END AS isRead,
             DATE_FORMAT(n.read_time, '%Y-%m-%d %H:%i:%s') AS readTime
         FROM attendance_notice n
-        LEFT JOIN course c ON n.course_id = c.course_id
+        INNER JOIN course c ON n.course_id = c.course_id
         WHERE n.student_id = #{studentId}
           AND n.send_status = 1
         <if test="status != null">

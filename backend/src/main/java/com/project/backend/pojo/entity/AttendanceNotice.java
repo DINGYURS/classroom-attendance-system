@@ -33,7 +33,7 @@ public class AttendanceNotice implements Serializable {
     private Long studentId;
 
     /**
-     * 相关课程 ID，为空表示综合提醒
+     * 相关课程 ID
      */
     private Long courseId;
 

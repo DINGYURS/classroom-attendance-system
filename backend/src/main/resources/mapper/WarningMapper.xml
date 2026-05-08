@@ -193,7 +193,7 @@
             usr.real_name AS studentName,
             stu.student_number AS studentId,
             n.course_id AS courseId,
-            IFNULL(c.course_name, '综合提醒') AS courseName,
+            c.course_name AS courseName,
             n.absent_count AS absenceSnapshot,
             n.title AS title,
             DATE_FORMAT(n.send_time, '%Y-%m-%d %H:%i:%s') AS sentTime,
@@ -201,7 +201,7 @@
         FROM attendance_notice n
         INNER JOIN student stu ON n.student_id = stu.user_id
         INNER JOIN user usr ON stu.user_id = usr.user_id
-        LEFT JOIN course c ON n.course_id = c.course_id
+        INNER JOIN course c ON n.course_id = c.course_id
         <include refid="NoticeHistoryWhere"/>
         ORDER BY n.send_time DESC, n.notice_id DESC
     </select>

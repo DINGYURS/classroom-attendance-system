@@ -374,6 +374,7 @@ onUnmounted(() => {
           <el-select
             v-model="filterForm.semester"
             style="width: 180px;"
+            placeholder="全部学期"
             @change="() => { filterForm.courseId = ''; filterForm.adminClass = '' }"
           >
             <el-option v-for="opt in semesterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />

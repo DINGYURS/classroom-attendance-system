@@ -144,7 +144,7 @@ create table attendance_notice
         primary key,
     teacher_id      bigint                             not null comment '发送教师ID',
     student_id      bigint                             not null comment '接收学生ID',
-    course_id       bigint                             null comment '相关课程ID，为空表示综合提醒',
+    course_id       bigint                             not null comment '相关课程ID',
     notice_type     tinyint  default 1                 not null comment '通知类型: 1-缺勤提醒',
     absent_count    int      default 0                 not null comment '发送时累计缺勤次数快照',
     title           varchar(128)                       not null comment '通知标题',
@@ -162,7 +162,7 @@ create table attendance_notice
             on delete cascade,
     constraint fk_notice_course
         foreign key (course_id) references course (course_id)
-            on delete set null
+            on delete cascade
 )
     comment '考勤提醒通知记录表';
 
