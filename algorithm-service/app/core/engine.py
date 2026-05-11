@@ -10,6 +10,16 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
+def _ensure_ultralytics_config_dir() -> None:
+    if os.environ.get("YOLO_CONFIG_DIR"):
+        return
+
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    config_dir = os.path.join(project_root, ".cache", "ultralytics")
+    os.makedirs(config_dir, exist_ok=True)
+    os.environ["YOLO_CONFIG_DIR"] = config_dir
+
+
 class FaceEngine:
     _instance: Optional["FaceEngine"] = None
 
@@ -34,6 +44,7 @@ class FaceEngine:
         model_path = settings.yolo_model_path
         if os.path.exists(model_path):
             try:
+                _ensure_ultralytics_config_dir()
                 from ultralytics import YOLO
 
                 logger.info(f"Loading YOLO face detection model from {model_path}...")
