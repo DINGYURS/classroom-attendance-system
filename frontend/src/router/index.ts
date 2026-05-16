@@ -110,7 +110,7 @@ const router = createRouter({
 
 router.beforeEach((to, _from, next) => {
   // 更新文档标题
-  document.title = (to.meta.title as string) ? `${to.meta.title} - 云点名系统` : '云点名系统'
+  document.title = (to.meta.title as string) ? `${to.meta.title} - 智能考勤系统` : '智能考勤系统'
 
   const authStore = useAuthStore()
 

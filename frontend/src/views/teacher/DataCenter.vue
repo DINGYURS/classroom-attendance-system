@@ -380,7 +380,7 @@ onUnmounted(() => {
             <el-option v-for="opt in semesterOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="课程">
+        <el-form-item label="课程">                                             
           <el-select
             v-model="filterForm.courseId"
             filterable
